@@ -1096,7 +1096,7 @@ function displayHistory(history) {
 }
 
 async function clearHistory() {
-    showModal(
+    dangerModal(
         'Clear History',
         'Are you sure you want to clear all download history? This action cannot be undone.',
         async () => {

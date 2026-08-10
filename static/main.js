@@ -9,6 +9,66 @@ let selectedPreset = null;
 let autoFetchEnabled = true;
 
 // ────────────────────────────────────────────────────────────
+//  Platform Detection
+// ────────────────────────────────────────────────────────────
+function detectPlatform(url) {
+    const urlLower = url.toLowerCase();
+    
+    // YouTube patterns
+    if (urlLower.includes('youtube.com/watch') || 
+        urlLower.includes('youtu.be/') || 
+        urlLower.includes('youtube.com/shorts/')) {
+        return { name: 'YouTube', color: '#00ff00', emoji: '🟢', supported: true };
+    }
+    
+    // TikTok patterns
+    if (urlLower.includes('tiktok.com/@') || 
+        urlLower.includes('vm.tiktok.com/') || 
+        urlLower.includes('tiktok.com/t/')) {
+        return { name: 'TikTok', color: '#a855f7', emoji: '🟣', supported: true };
+    }
+    
+    // Instagram patterns
+    if (urlLower.includes('instagram.com/reel/') || 
+        urlLower.includes('instagram.com/p/') || 
+        urlLower.includes('instagram.com/tv/')) {
+        return { name: 'Instagram', color: '#ff6b00', emoji: '🟠', supported: true };
+    }
+    
+    // Unsupported
+    return { name: 'Unsupported', color: '#ff0000', emoji: '🔴', supported: false };
+}
+
+function updatePlatformDisplay(url) {
+    const platform = detectPlatform(url);
+    const platformDisplay = document.getElementById('platformDisplay');
+    
+    if (!platformDisplay) {
+        // Create platform display element if it doesn't exist
+        const inputWrapper = document.querySelector('.input-wrapper');
+        if (inputWrapper) {
+            const display = document.createElement('div');
+            display.id = 'platformDisplay';
+            display.className = 'platform-display';
+            inputWrapper.appendChild(display);
+        }
+        return;
+    }
+    
+    platformDisplay.innerHTML = `
+        <span class="platform-indicator" style="color: ${platform.color}">
+            ${platform.emoji} ${platform.name}
+        </span>
+    `;
+    
+    if (!platform.supported && url.trim()) {
+        platformDisplay.innerHTML += `
+            <span class="platform-error">Only YouTube, TikTok, and Instagram are currently supported.</span>
+        `;
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 //  Save/Restore Video Info
 // ────────────────────────────────────────────────────────────
 function saveVideoInfo(data) {
@@ -80,7 +140,14 @@ function dismissVideo() {
 // ────────────────────────────────────────────────────────────
 async function fetchVideoInfo() {
     const url = document.getElementById('urlInput').value.trim();
-    if (!url) { showError('Please enter a YouTube URL'); return; }
+    if (!url) { showError('Please enter a video URL'); return; }
+    
+    // Check platform support
+    const platform = detectPlatform(url);
+    if (!platform.supported) {
+        showError('Only YouTube, TikTok, and Instagram are currently supported.');
+        return;
+    }
     
     // Save URL to localStorage
     localStorage.setItem('currentUrl', url);
@@ -126,7 +193,7 @@ function displayVideoInfo(data) {
 
     displayFormats(data.formats);
     
-    // Save to localStorage for persistence
+    // Save to localStorage for persistence (including platform)
     saveVideoInfo(data);
 }
 
@@ -212,6 +279,20 @@ async function startDownload(formatId) {
     const customFilename = document.getElementById('filenameInput').value.trim();
 
     const thumbnail = document.getElementById('thumbnail').src;
+    
+    // Get platform from saved video info or detect from URL
+    let platform = 'YouTube';
+    try {
+        const savedVideoInfo = localStorage.getItem('currentVideoInfo');
+        if (savedVideoInfo) {
+            const videoData = JSON.parse(savedVideoInfo);
+            platform = videoData.platform || detectPlatform(url);
+        } else {
+            platform = detectPlatform(url);
+        }
+    } catch(e) {
+        platform = detectPlatform(url);
+    }
 
     let customFolder = '';
     let filenameTemplate = '{title}_{quality}_{date}';
@@ -238,7 +319,9 @@ async function startDownload(formatId) {
                 custom_filename: customFilename, 
                 preset: selectedPreset,
                 download_folder: customFolder,
-                filename_template: filenameTemplate
+                filename_template: filenameTemplate,
+                platform: platform,
+                uploader: document.getElementById('videoUploader').textContent
             })
         });
         const data = await response.json();
@@ -378,10 +461,10 @@ function extractYouTubeID(url) {
 //  Filename Template Help
 // ────────────────────────────────────────────────────────────
 function showTemplateHelp() {
-    showModal(
+    alertModal(
         'Filename Templates',
         'Available variables: {title}, {uploader}, {date}, {quality}, {id}\n\nExample: {title}_{quality}_{date}.mp4\nThis will create: "Video Title_1080p_2024-08-07.mp4"',
-        () => {}
+        'Got it'
     );
 }
 
@@ -656,7 +739,7 @@ function showSimpleToast(title, message, type = 'info') {
 async function cancelCurrentDownload() {
     if (!currentDownloadId) return;
 
-    showModal(
+    confirmModal(
         'Cancel Download',
         'Are you sure you want to cancel this download?',
         async () => {
@@ -842,6 +925,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') fetchVideoInfo();
     });
     document.getElementById('urlInput').addEventListener('paste', handlePaste);
+    document.getElementById('urlInput').addEventListener('input', (e) => {
+        updatePlatformDisplay(e.target.value);
+    });
+
+    // Initialize platform display on page load
+    const existingUrl = document.getElementById('urlInput').value;
+    if (existingUrl) {
+        updatePlatformDisplay(existingUrl);
+    }
 
     // Quality preset buttons
     document.querySelectorAll('.preset-btn').forEach(btn => {

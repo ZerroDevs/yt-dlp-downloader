@@ -169,7 +169,7 @@ class Modal {
 // Alert modal (single button)
 function alertModal(title, content, buttonText = 'OK') {
     const modal = new Modal({
-        title,
+        title: `ℹ️ ${title}`,
         content,
         confirmText: buttonText,
         showCancel: false
@@ -181,7 +181,7 @@ function alertModal(title, content, buttonText = 'OK') {
 // Confirm modal (yes/no)
 function confirmModal(title, content, onConfirm, onCancel = null) {
     const modal = new Modal({
-        title,
+        title: `❓ ${title}`,
         content,
         onConfirm,
         onCancel,
@@ -195,7 +195,7 @@ function confirmModal(title, content, onConfirm, onCancel = null) {
 // Danger confirm modal (red confirm button)
 function dangerModal(title, content, onConfirm, onCancel = null) {
     const modal = new Modal({
-        title,
+        title: `⚠️ ${title}`,
         content,
         onConfirm,
         onCancel,

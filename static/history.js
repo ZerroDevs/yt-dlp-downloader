@@ -69,6 +69,19 @@ function displayHistory(history) {
         const isCompleted = item.status === 'completed';
         const statusIcon = isCompleted ? '✓' : item.status === 'failed' ? '✗' : '⟳';
         
+        // Platform display
+        const platform = item.platform || 'YouTube';
+        let platformBadge = '';
+        if (platform === 'YouTube') {
+            platformBadge = '<span class="platform-badge platform-youtube">🟢 YouTube</span>';
+        } else if (platform === 'TikTok') {
+            platformBadge = '<span class="platform-badge platform-tiktok">🟣 TikTok</span>';
+        } else if (platform === 'Instagram') {
+            platformBadge = '<span class="platform-badge platform-instagram">🟠 Instagram</span>';
+        } else {
+            platformBadge = '<span class="platform-badge platform-unsupported">🔴 Unknown</span>';
+        }
+        
         // Cloud status
         const cloudStatus = item.cloud_status || 'not_uploaded';
         let cloudStatusIcon = '';
@@ -134,6 +147,7 @@ function displayHistory(history) {
                 <div class="history-info">
                     <div class="history-title">${escapeHtml(item.title)}</div>
                     <div class="history-meta">
+                        ${platformBadge}
                         <span class="history-resolution">${escapeHtml(item.resolution)}</span>
                         <span class="history-time">${formatTime(item.timestamp)}</span>
                         ${item.filesize ? `<span class="history-size">${formatSize(item.filesize)}</span>` : ''}

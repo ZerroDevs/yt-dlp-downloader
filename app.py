@@ -143,10 +143,10 @@ def cleanup_download_files(filename, download_id=None, download_path=None):
         print(f"Error cleaning up files for {filename}: {e}")
 
 def sanitize_filename(filename):
-    """Remove invalid characters from filename for Windows compatibility"""
-    # Remove invalid characters: < > : " / \ | ? * and other special chars
+    """Sanitize filename to be safe for filesystem"""
+    # Remove invalid characters
     filename = re.sub(r'[<>:"/\\|?*]', '', filename)
-    # Remove emojis and other non-ASCII characters
+    # Remove non-ASCII characters
     filename = re.sub(r'[^\x00-\x7F]+', '', filename)
     # Remove leading/trailing spaces and dots
     filename = filename.strip('. ')
@@ -156,6 +156,25 @@ def sanitize_filename(filename):
     if len(filename) > 80:
         filename = filename[:80]
     return filename or 'video'
+
+def detect_platform(url):
+    """Detect the platform from URL"""
+    url_lower = url.lower()
+    
+    # YouTube patterns
+    if 'youtube.com/watch' in url_lower or 'youtu.be/' in url_lower or 'youtube.com/shorts/' in url_lower:
+        return 'YouTube'
+    
+    # TikTok patterns
+    if 'tiktok.com/@' in url_lower or 'vm.tiktok.com/' in url_lower or 'tiktok.com/t/' in url_lower:
+        return 'TikTok'
+    
+    # Instagram patterns
+    if 'instagram.com/reel/' in url_lower or 'instagram.com/p/' in url_lower or 'instagram.com/tv/' in url_lower:
+        return 'Instagram'
+    
+    # Unsupported
+    return 'Unsupported'
 
 def process_filename_template(template, title, quality, download_id, uploader=None):
     """Process filename template and replace placeholders with actual values"""
@@ -315,6 +334,8 @@ def get_video_info(url):
                     'error': 'No downloadable video formats found. The video may be private or unavailable.'
                 }
 
+            platform = detect_platform(url)
+
             return {
                 'title': info.get('title', 'Unknown'),
                 'thumbnail': info.get('thumbnail', ''),
@@ -323,7 +344,8 @@ def get_video_info(url):
                 'uploader': info.get('uploader', 'Unknown'),
                 'view_count': info.get('view_count', 0),
                 'formats': formats[:15],  # Show up to 15 formats
-                'note': note
+                'note': note,
+                'platform': platform
             }
     except Exception as e:
         import traceback
@@ -362,7 +384,7 @@ def format_duration(seconds):
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"
 
-def download_video(url, format_id, download_id, title, resolution, actual_resolution=None, custom_filename=None, custom_folder=None, thumbnail=None, is_audio=False):
+def download_video(url, format_id, download_id, title, resolution, actual_resolution=None, custom_filename=None, custom_folder=None, thumbnail=None, is_audio=False, platform='YouTube'):
     """Download video in background thread with pause/resume support"""
     # Determine filename once at the start
     if custom_filename and custom_filename.strip():
@@ -531,6 +553,7 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
             'filename': f"{filename}.mp4",
             'timestamp': datetime.now().isoformat(),
             'status': 'completed',
+            'platform': platform,  # Add platform to history
             # Cloud Archive fields
             'cloud_status': 'not_uploaded',  # not_uploaded, uploading, uploaded, failed
             'cloud_progress': 0,
@@ -656,6 +679,7 @@ def start_download():
     preset = data.get('preset')  # 'best', 'smallest', 'audio'
     filename_template = data.get('filename_template', '{title}_{quality}_{date}')
     is_audio = preset == 'audio'  # Check if this is an audio-only download
+    platform = data.get('platform', 'YouTube')  # Get platform from request
     
     if not url:
         return jsonify({'error': 'URL is required'}), 400
@@ -687,7 +711,7 @@ def start_download():
     actual_resolution = data.get('actual_resolution')
     
     # Start download in background thread
-    thread = threading.Thread(target=download_video, args=(url, format_id, download_id, title, resolution, actual_resolution, custom_filename, download_folder, thumbnail, is_audio))
+    thread = threading.Thread(target=download_video, args=(url, format_id, download_id, title, resolution, actual_resolution, custom_filename, download_folder, thumbnail, is_audio, platform))
     thread.daemon = True
     thread.start()
     
