@@ -236,15 +236,17 @@ async function openFile(downloadId) {
             showNotification('Opening file...');
         } else if (data.filepath) {
             // fallback if it couldn't open natively
-            showModal(
-                'File Location',
-                `File path:\n\n${data.filepath}\n\nClick "Copy" to copy this path, then paste it in File Explorer to open the file.`,
-                async () => {
+            const content = `File path:<br><br><code style="background:var(--input-bg);padding:8px;border-radius:4px;display:block;word-break:break-all;">${escapeHtml(data.filepath)}</code><br><br>Click "Copy" to copy this path, then paste it in File Explorer to open the file.`;
+            
+            customModal({
+                title: 'File Location',
+                content,
+                confirmText: 'Copy Path',
+                onConfirm: async () => {
                     await navigator.clipboard.writeText(data.filepath);
                     showNotification('Path copied to clipboard!');
-                },
-                'Copy Path'
-            );
+                }
+            });
         } else {
             showError(data.error || 'File not found');
         }
@@ -276,15 +278,17 @@ async function openFolder(downloadId) {
             showNotification('Opening folder...');
         } else if (data.folderpath) {
             // fallback if it couldn't open natively
-            showModal(
-                'Folder Location',
-                `Folder path:\n\n${data.folderpath}\n\nClick "Copy" to copy this path, then paste it in File Explorer to open the folder.`,
-                async () => {
+            const content = `Folder path:<br><br><code style="background:var(--input-bg);padding:8px;border-radius:4px;display:block;word-break:break-all;">${escapeHtml(data.folderpath)}</code><br><br>Click "Copy" to copy this path, then paste it in File Explorer to open the folder.`;
+            
+            customModal({
+                title: 'Folder Location',
+                content,
+                confirmText: 'Copy Path',
+                onConfirm: async () => {
                     await navigator.clipboard.writeText(data.folderpath);
                     showNotification('Path copied to clipboard!');
-                },
-                'Copy Path'
-            );
+                }
+            });
         } else {
             showError(data.error || 'Folder not found');
         }
@@ -295,7 +299,7 @@ async function openFolder(downloadId) {
 }
 
 async function deleteHistoryItem(downloadId) {
-    showModal(
+    dangerModal(
         'Delete Video',
         'Are you sure you want to delete this video from history?',
         async () => {
@@ -329,7 +333,7 @@ async function deleteHistoryItem(downloadId) {
 }
 
 async function clearHistory() {
-    showModal(
+    dangerModal(
         'Clear History',
         'Are you sure you want to clear all download history? This cannot be undone.',
         async () => {
@@ -452,27 +456,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function showModal(title, message, callback, confirmText = 'Confirm') {
-    const modal = document.getElementById('customModal');
-    if (!modal) {
-        if (confirm(message)) callback();
-        return;
-    }
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalMessage').textContent = message;
-    document.getElementById('modalConfirm').textContent = confirmText;
-    modalCallback = callback;
-    modal.classList.remove('hidden');
-}
-
-function hideModal() {
-    const modal = document.getElementById('customModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-    modalCallback = null;
-}
-
 function showNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'notification';
@@ -499,6 +482,8 @@ function showNotification(message) {
 function showError(message) {
     showNotification(message);
 }
+
+// Initialize
 
 async function uploadToCloud(downloadId) {
     try {
@@ -602,23 +587,14 @@ let deleteCloudId = null;
 
 function confirmDeleteCloud(downloadId) {
     deleteCloudId = downloadId;
-    const modal = document.getElementById('deleteCloudModal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    } else {
-        // Fallback to native confirm if modal doesn't exist
-        if (confirm('Are you sure you want to delete this video from cloud storage? The local file will NOT be deleted.')) {
+    
+    confirmModal(
+        'Delete Cloud Copy',
+        'Are you sure you want to delete this video from cloud storage? The local file will NOT be deleted.',
+        () => {
             deleteFromCloud(downloadId);
         }
-    }
-}
-
-function hideDeleteCloudModal() {
-    const modal = document.getElementById('deleteCloudModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-    deleteCloudId = null;
+    );
 }
 
 async function deleteFromCloud(downloadId) {
@@ -646,7 +622,6 @@ async function deleteFromCloud(downloadId) {
         
         if (response.ok) {
             showNotification('Cloud copy deleted successfully');
-            hideDeleteCloudModal();
             await loadHistory(); // Refresh the history UI
         } else {
             const data = await response.json();
@@ -656,6 +631,8 @@ async function deleteFromCloud(downloadId) {
         console.error('Error deleting from cloud:', error);
         showError('Failed to delete cloud copy');
     }
+    
+    deleteCloudId = null;
 }
 
 function pollCloudProgress(downloadId) {
@@ -684,8 +661,6 @@ function pollCloudProgress(downloadId) {
     }, 1000);
 }
 
-let modalCallback = null;
-
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadHistory();
@@ -703,21 +678,4 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const cleanupPartBtn = document.getElementById('cleanupPartBtn');
     if (cleanupPartBtn) cleanupPartBtn.addEventListener('click', cleanupPartFiles);
-    
-    // Modal event listeners
-    const modalClose = document.getElementById('modalClose');
-    const modalCancel = document.getElementById('modalCancel');
-    const modalConfirm = document.getElementById('modalConfirm');
-    const modalOverlay = document.querySelector('.modal-overlay');
-    
-    if (modalClose) modalClose.addEventListener('click', hideModal);
-    if (modalCancel) modalCancel.addEventListener('click', hideModal);
-    if (modalConfirm) modalConfirm.addEventListener('click', () => {
-        if (modalCallback) {
-            modalCallback();
-            modalCallback = null;
-        }
-        hideModal();
-    });
-    if (modalOverlay) modalOverlay.addEventListener('click', hideModal);
 });

@@ -4,7 +4,6 @@
 let currentDownloadId = null;
 let progressInterval  = null;
 let floatingToastId   = null; // tracks the active downloading toast
-let modalCallback     = null; // callback for modal confirm action
 let isLoadingState = false; // prevent infinite loop during state loading
 
 // ────────────────────────────────────────────────────────────
@@ -178,23 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
-    // Modal event listeners (only if modal exists)
-    const modalClose = document.getElementById('modalClose');
-    const modalCancel = document.getElementById('modalCancel');
-    const modalConfirm = document.getElementById('modalConfirm');
-    const modalOverlay = document.querySelector('.modal-overlay');
-    
-    if (modalClose) modalClose.addEventListener('click', hideModal);
-    if (modalCancel) modalCancel.addEventListener('click', hideModal);
-    if (modalConfirm) modalConfirm.addEventListener('click', () => {
-        if (modalCallback) {
-            modalCallback();
-            modalCallback = null;
-        }
-        hideModal();
-    });
-    if (modalOverlay) modalOverlay.addEventListener('click', hideModal);
-
     loadHistory();
     loadState(); // Load saved state
     setInterval(updateQueue, 2000);
@@ -316,11 +298,14 @@ function extractYouTubeID(url) {
 //  Filename Template Help
 // ────────────────────────────────────────────────────────────
 function showTemplateHelp() {
-    showModal(
-        'Filename Templates',
-        'Available variables: {title}, {uploader}, {date}, {quality}, {id}\n\nExample: {title}_{quality}_{date}.mp4\nThis will create: "Video Title_1080p_2024-08-07.mp4"',
-        () => {}
-    );
+    const content = 'Available variables: {title}, {uploader}, {date}, {quality}, {id}<br><br>Example: {title}_{quality}_{date}.mp4<br>This will create: "Video Title_1080p_2024-08-07.mp4"';
+    
+    customModal({
+        title: 'Filename Templates',
+        content,
+        confirmText: 'OK',
+        showCancel: false
+    });
 }
 
 // ────────────────────────────────────────────────────────────
@@ -380,7 +365,7 @@ async function fetchVideoInfo() {
     showLoading();
 
     try {
-        const response = await fetch('/api/info', {
+        const response = await fetch('/api/video-info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url })
@@ -769,15 +754,17 @@ async function openFile(downloadId) {
         
         if (data.filepath) {
             // Show file path with copy button (browsers block direct file opening)
-            showModal(
-                'File Location',
-                `File path:\n\n${data.filepath}\n\nClick "Copy" to copy this path, then paste it in File Explorer to open the file.`,
-                async () => {
+            const content = `File path:<br><br><code style="background:var(--input-bg);padding:8px;border-radius:4px;display:block;word-break:break-all;">${escapeHtml(data.filepath)}</code><br><br>Click "Copy" to copy this path, then paste it in File Explorer to open the file.`;
+            
+            customModal({
+                title: 'File Location',
+                content,
+                confirmText: 'Copy Path',
+                onConfirm: async () => {
                     await navigator.clipboard.writeText(data.filepath);
                     showNotification('Path copied to clipboard!');
-                },
-                'Copy Path'
-            );
+                }
+            });
         } else {
             showError('File not found');
         }
@@ -794,15 +781,17 @@ async function openFolder(downloadId) {
         
         if (data.folderpath) {
             // Show folder path with copy button (browsers block direct folder opening)
-            showModal(
-                'Folder Location',
-                `Folder path:\n\n${data.folderpath}\n\nClick "Copy" to copy this path, then paste it in File Explorer to open the folder.`,
-                async () => {
+            const content = `Folder path:<br><br><code style="background:var(--input-bg);padding:8px;border-radius:4px;display:block;word-break:break-all;">${escapeHtml(data.folderpath)}</code><br><br>Click "Copy" to copy this path, then paste it in File Explorer to open the folder.`;
+            
+            customModal({
+                title: 'Folder Location',
+                content,
+                confirmText: 'Copy Path',
+                onConfirm: async () => {
                     await navigator.clipboard.writeText(data.folderpath);
                     showNotification('Path copied to clipboard!');
-                },
-                'Copy Path'
-            );
+                }
+            });
         } else {
             showError('Folder not found');
         }
@@ -816,7 +805,7 @@ async function openFolder(downloadId) {
 //  Delete a history item (file + record)
 // ────────────────────────────────────────────────────────────
 async function deleteHistoryItem(downloadId, btn) {
-    showModal(
+    dangerModal(
         'Delete Video',
         'Are you sure you want to delete this video and remove it from history? This action cannot be undone.',
         async () => {
@@ -842,31 +831,8 @@ async function deleteHistoryItem(downloadId, btn) {
 }
 
 // ────────────────────────────────────────────────────────────
-//  Modal helpers
+//  Modal helpers (removed - using modal.js instead)
 // ────────────────────────────────────────────────────────────
-function showModal(title, message, callback, confirmText = 'Confirm') {
-    const modal = document.getElementById('customModal');
-    if (!modal) {
-        // Fallback to browser confirm if modal not found
-        if (confirm(message)) {
-            callback();
-        }
-        return;
-    }
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalMessage').textContent = message;
-    document.getElementById('modalConfirm').textContent = confirmText;
-    modalCallback = callback;
-    modal.classList.remove('hidden');
-}
-
-function hideModal() {
-    const modal = document.getElementById('customModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-    modalCallback = null;
-}
 
 // Simple notification function
 function showNotification(message) {

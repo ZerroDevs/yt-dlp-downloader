@@ -279,7 +279,7 @@ async function cancelDownload(downloadId) {
     const queueItem = queueList.querySelector(`[onclick*="${downloadId}"]`)?.closest('.queue-card');
     const videoTitle = queueItem?.querySelector('.queue-title')?.textContent || 'Unknown';
     
-    showModal(
+    confirmModal(
         'Cancel Download',
         'Are you sure you want to cancel this download?',
         async () => {
@@ -349,29 +349,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Modal functions
-function showModal(title, message, callback) {
-    const modal = document.getElementById('customModal');
-    if (!modal) {
-        if (confirm(message)) callback();
-        return;
-    }
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalMessage').textContent = message;
-    modalCallback = callback;
-    modal.classList.remove('hidden');
-}
-
-function hideModal() {
-    const modal = document.getElementById('customModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-    modalCallback = null;
-}
-
-let modalCallback = null;
-
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     // #region debug-point B:dom-ready
@@ -387,23 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 150);
     updateInterval = setInterval(updateQueue, 1000);
     
-    // Modal event listeners
-    const modalClose = document.getElementById('modalClose');
-    const modalCancel = document.getElementById('modalCancel');
-    const modalConfirm = document.getElementById('modalConfirm');
-    const modalOverlay = document.querySelector('.modal-overlay');
-    
-    if (modalClose) modalClose.addEventListener('click', hideModal);
-    if (modalCancel) modalCancel.addEventListener('click', hideModal);
-    if (modalConfirm) modalConfirm.addEventListener('click', () => {
-        if (modalCallback) {
-            modalCallback();
-            modalCallback = null;
-        }
-        hideModal();
-    });
-    if (modalOverlay) modalOverlay.addEventListener('click', hideModal);
-
     // Cleanup .part files button
     const cleanupPartBtn = document.getElementById('cleanupPartBtn');
     if (cleanupPartBtn) {

@@ -4,6 +4,7 @@ let filteredFiles = [];
 let deleteFileKey = null;
 let deleteDownloadId = null;
 let storageLimit = 10; // Default 10GB
+let selectedFiles = new Set(); // Track selected files for bulk operations
 
 // Load storage info
 async function loadStorageInfo() {
@@ -166,13 +167,17 @@ function renderCloudFiles() {
         const date = new Date(file.last_modified);
         const formattedDate = date.toLocaleDateString();
         const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isSelected = selectedFiles.has(file.key);
         
         // Determine file type for preview
         const isImage = file.filename.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i);
         const isVideo = file.filename.match(/\.(mp4|webm|mkv|avi|mov)$/i);
         
         return `
-            <div class="cloud-file-card">
+            <div class="cloud-file-card ${isSelected ? 'selected' : ''}" data-file-key="${file.key}">
+                <div class="cloud-file-checkbox">
+                    <input type="checkbox" class="file-checkbox" data-file-key="${file.key}" ${isSelected ? 'checked' : ''} onchange="toggleFileSelection('${file.key}')">
+                </div>
                 <div class="cloud-file-number">${index + 1}</div>
                 ${isImage ? `
                     <div class="cloud-file-preview">
@@ -716,30 +721,143 @@ function hideStorageSettingsModal() {
     // Handled by modal.js automatically
 }
 
+// Toggle file selection for bulk operations
+function toggleFileSelection(fileKey) {
+    if (selectedFiles.has(fileKey)) {
+        selectedFiles.delete(fileKey);
+    } else {
+        selectedFiles.add(fileKey);
+    }
+    updateBulkActionButton();
+}
+
+// Select all files
+function selectAllFiles() {
+    filteredFiles.forEach(file => selectedFiles.add(file.key));
+    renderCloudFiles();
+    updateBulkActionButton();
+}
+
+// Deselect all files
+function deselectAllFiles() {
+    selectedFiles.clear();
+    renderCloudFiles();
+    updateBulkActionButton();
+}
+
+// Update bulk delete button state
+function updateBulkActionButton() {
+    const btn = document.getElementById('bulkDeleteBtn');
+    if (btn) {
+        btn.disabled = selectedFiles.size === 0;
+        btn.textContent = selectedFiles.size > 0 ? `Delete Selected (${selectedFiles.size})` : 'Delete Selected';
+    }
+}
+
+// Confirm bulk delete
+function confirmBulkDelete() {
+    if (selectedFiles.size === 0) {
+        showNotification('No files selected');
+        return;
+    }
+    
+    dangerModal(
+        'Delete Selected Files',
+        `Are you sure you want to delete ${selectedFiles.size} file(s) from cloud storage? This action cannot be undone.`,
+        executeBulkDelete
+    );
+}
+
+// Execute bulk delete
+async function executeBulkDelete() {
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (!savedSettings) {
+            showError('Please configure cloud settings in Settings first');
+            return;
+        }
+        
+        const settings = JSON.parse(savedSettings);
+        
+        const response = await fetch('/api/cloud/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                file_keys: Array.from(selectedFiles),
+                b2_settings: {
+                    bucket_name: settings.b2BucketName,
+                    endpoint_url: settings.b2EndpointUrl,
+                    key_id: settings.b2KeyId,
+                    application_key: settings.b2ApplicationKey
+                }
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            showNotification(`Deleted ${data.deleted_count} file(s) successfully`);
+            selectedFiles.clear();
+            loadCloudFiles();
+            loadStorageInfo();
+        } else {
+            const data = await response.json();
+            showError('Failed to delete files: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting files:', error);
+        showError('Failed to delete files');
+    }
+}
+
 // Bulk upload files
 async function handleBulkUpload() {
     const fileInput = document.getElementById('bulkFileInput');
     fileInput.click();
-    
-    fileInput.onchange = async (e) => {
-        const files = Array.from(e.target.files);
-        if (files.length === 0) return;
-        
-        // Show Discord webhook confirmation modal
-        const modal = confirmModal(
-            'Discord Webhook Notification',
-            'Send Discord webhook notification for this upload?',
-            () => {
-                // User confirmed - proceed with upload and Discord notification
-                performBulkUpload(files, true);
-            },
-            () => {
-                // User cancelled - proceed without Discord notification
-                performBulkUpload(files, false);
-            }
-        );
-    };
 }
+
+// Set up the file input change handler once (outside the function to prevent duplicates)
+let bulkUploadHandlerAttached = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (bulkUploadHandlerAttached) return;
+    
+    const fileInput = document.getElementById('bulkFileInput');
+    if (fileInput) {
+        let isUploading = false; // Flag to prevent duplicate uploads
+        
+        fileInput.onchange = async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            
+            if (isUploading) {
+                console.log('Upload already in progress, ignoring duplicate request');
+                return;
+            }
+            
+            isUploading = true;
+            
+            // Show Discord webhook confirmation modal
+            const modal = confirmModal(
+                'Discord Webhook Notification',
+                'Send Discord webhook notification for this upload?',
+                () => {
+                    // User confirmed - proceed with upload and Discord notification
+                    performBulkUpload(files, true).finally(() => {
+                        isUploading = false;
+                    });
+                },
+                () => {
+                    // User cancelled - proceed without Discord notification
+                    performBulkUpload(files, false).finally(() => {
+                        isUploading = false;
+                    });
+                }
+            );
+        };
+        
+        bulkUploadHandlerAttached = true;
+    }
+});
 
 // Perform the actual bulk upload
 async function performBulkUpload(files, sendDiscord) {

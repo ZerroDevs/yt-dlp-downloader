@@ -64,15 +64,35 @@ class Modal {
         const confirmBtn = this.element.querySelector('[data-action="confirm"]');
         const cancelBtn = this.element.querySelector('[data-action="cancel"]');
 
-        // Close on overlay click
-        overlay.addEventListener('click', () => this.close());
+        let callbackExecuted = false;
 
-        // Close on X button
-        closeBtn.addEventListener('click', () => this.close());
+        // Close on overlay click (treat as cancel)
+        overlay.addEventListener('click', (e) => {
+            if (callbackExecuted) return;
+            callbackExecuted = true;
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.onCancel) this.onCancel();
+            this.close();
+        });
+
+        // Close on X button (treat as cancel)
+        closeBtn.addEventListener('click', (e) => {
+            if (callbackExecuted) return;
+            callbackExecuted = true;
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.onCancel) this.onCancel();
+            this.close();
+        });
 
         // Confirm button
         if (confirmBtn) {
-            confirmBtn.addEventListener('click', () => {
+            confirmBtn.addEventListener('click', (e) => {
+                if (callbackExecuted) return;
+                callbackExecuted = true;
+                e.preventDefault();
+                e.stopPropagation();
                 if (this.onConfirm) {
                     this.onConfirm();
                 }
@@ -82,7 +102,11 @@ class Modal {
 
         // Cancel button
         if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => {
+            cancelBtn.addEventListener('click', (e) => {
+                if (callbackExecuted) return;
+                callbackExecuted = true;
+                e.preventDefault();
+                e.stopPropagation();
                 if (this.onCancel) {
                     this.onCancel();
                 }
@@ -90,9 +114,14 @@ class Modal {
             });
         }
 
-        // Close on Escape key
+        // Close on Escape key (treat as cancel)
         this.escapeHandler = (e) => {
             if (e.key === 'Escape') {
+                if (callbackExecuted) return;
+                callbackExecuted = true;
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.onCancel) this.onCancel();
                 this.close();
             }
         };
@@ -112,9 +141,8 @@ class Modal {
             this.element.classList.add('hidden');
         }
         document.removeEventListener('keydown', this.escapeHandler);
-        if (this.onCancel) {
-            this.onCancel();
-        }
+        // Only call onCancel if modal was cancelled, not on normal close
+        // This prevents double execution when confirm button is clicked
         return this;
     }
 

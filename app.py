@@ -1945,6 +1945,76 @@ def delete_from_cloud(download_id):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/cloud/bulk-delete', methods=['POST'])
+def bulk_delete_cloud_files():
+    """Delete multiple files from cloud storage"""
+    try:
+        data = request.json
+        file_keys = data.get('file_keys', [])
+        b2_settings = data.get('b2_settings', {})
+        
+        if not file_keys:
+            return jsonify({'error': 'No file keys provided'}), 400
+        
+        # Use provided settings or fall back to environment
+        bucket_name = b2_settings.get('bucket_name') or B2_BUCKET_NAME
+        endpoint_url = b2_settings.get('endpoint_url') or B2_ENDPOINT_URL
+        key_id = b2_settings.get('key_id') or B2_KEY_ID
+        application_key = b2_settings.get('application_key') or B2_APPLICATION_KEY
+        
+        if not all([bucket_name, endpoint_url, key_id, application_key]):
+            return jsonify({'error': 'B2 settings not configured'}), 400
+        
+        # Create S3 client
+        s3 = boto3.client(
+            's3',
+            endpoint_url=endpoint_url,
+            aws_access_key_id=key_id,
+            aws_secret_access_key=application_key,
+            config=Config(signature_version='s3v4')
+        )
+        
+        deleted_count = 0
+        errors = []
+        
+        for file_key in file_keys:
+            try:
+                print(f"Deleting from B2: bucket={bucket_name}, key={file_key}")
+                s3.delete_object(Bucket=bucket_name, Key=file_key)
+                deleted_count += 1
+                print(f"Successfully deleted from B2: {file_key}")
+            except Exception as e:
+                print(f"Error deleting {file_key}: {e}")
+                errors.append({'file_key': file_key, 'error': str(e)})
+        
+        # Update history entries for deleted files
+        global download_history
+        download_history.clear()
+        download_history.extend(load_history())
+        
+        updated_history = False
+        for entry in download_history:
+            if entry.get('cloud_file_key') in file_keys:
+                entry['cloud_status'] = 'not_uploaded'
+                entry['cloud_progress'] = 0
+                entry['cloud_file_key'] = None
+                entry['cloud_signed_url'] = None
+                updated_history = True
+        
+        if updated_history:
+            save_history(download_history)
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count,
+            'errors': errors
+        })
+    except Exception as e:
+        print(f"Error in bulk delete: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/cloud/file/delete', methods=['POST'])
 def delete_cloud_file():
     """Delete a file directly from B2 by key"""
@@ -2036,7 +2106,7 @@ def bulk_upload_to_cloud():
         endpoint_url = b2_settings.get('endpoint_url') or B2_ENDPOINT_URL
         key_id = b2_settings.get('key_id') or B2_KEY_ID
         application_key = b2_settings.get('application_key') or B2_APPLICATION_KEY
-        discord_webhook = b2_settings.get('discord_webhook') or DISCORD_WEBHOOK
+        discord_webhook = b2_settings.get('discord_webhook') or DISCORD_WEBHOOK_URL
         
         if not all([bucket_name, endpoint_url, key_id, application_key]):
             return jsonify({'error': 'B2 settings not configured'}), 400
@@ -2105,9 +2175,19 @@ def bulk_upload_to_cloud():
         # Send Discord webhook if enabled
         if send_discord and discord_webhook and uploaded_files:
             try:
+                # Find first image for main image
+                image_url = None
+                for f in uploaded_files:
+                    if f['type'] and f['type'].startswith('image/'):
+                        image_url = f['url']
+                        break
+                
+                # Count images
+                image_count = sum(1 for f in uploaded_files if f['type'] and f['type'].startswith('image/'))
+                
                 embed_data = {
                     'title': f"📦 Bulk Upload Complete",
-                    'description': f"Successfully uploaded {len(uploaded_files)} files to B2",
+                    'description': f"Successfully uploaded {len(uploaded_files)} files to B2 ({image_count} images)",
                     'color': 0x00ff00,
                     'fields': [
                         {'name': '📁 Files Uploaded', 'value': str(len(uploaded_files)), 'inline': True},
@@ -2116,21 +2196,88 @@ def bulk_upload_to_cloud():
                     'timestamp': datetime.now().isoformat()
                 }
                 
-                # Add file list
-                file_list = '\n'.join([f"• {f['filename']} ({f['size_mb']} MB)" for f in uploaded_files[:5]])
-                if len(uploaded_files) > 5:
-                    file_list += f"\n... and {len(uploaded_files) - 5} more"
+                # Add main image if available (large image at bottom of embed)
+                if image_url:
+                    embed_data['image'] = {'url': image_url}
                 
-                embed_data['fields'].append({
-                    'name': '📋 File List',
-                    'value': file_list,
-                    'inline': False
-                })
+                # Add file list with URLs and types
+                # Discord has limits: 25 fields per embed, 1024 chars per field value
+                # We'll show all files by splitting into multiple fields if needed
+                file_list = []
+                for f in uploaded_files:
+                    file_type = f['type'] or 'unknown'
+                    # For images, show the image directly in Discord
+                    if file_type.startswith('image/'):
+                        file_list.append(f"• **{f['filename']}** ({f['size_mb']} MB)\n  Type: {file_type}\n  [View Image]({f['url']})")
+                    else:
+                        file_list.append(f"• **{f['filename']}** ({f['size_mb']} MB)\n  Type: {file_type}\n  [Download Link]({f['url']})")
                 
-                requests.post(discord_webhook, json={'embeds': [embed_data]})
-                print("Discord webhook sent for bulk upload")
+                # Split file list into chunks that fit Discord's limits
+                # Max 25 fields per embed, max 1024 chars per field value
+                max_field_length = 1000  # Leave buffer
+                max_fields = 25
+                current_chunk = []
+                current_length = 0
+                field_count = 0
+                chunk_number = 1
+                files_shown_count = 0
+                
+                for file_entry in file_list:
+                    entry_length = len(file_entry)
+                    # Check if adding this entry would exceed field length limit
+                    if current_length + entry_length + 2 > max_field_length:
+                        if current_chunk:
+                            embed_data['fields'].append({
+                                'name': f'📋 Files (Part {chunk_number})',
+                                'value': '\n'.join(current_chunk),
+                                'inline': False
+                            })
+                            field_count += 1
+                            chunk_number += 1
+                            files_shown_count += len(current_chunk)
+                            current_chunk = []
+                            current_length = 0
+                    
+                    # Check if we've reached max fields (25) - reserve 2 for summary fields
+                    if field_count >= max_fields - 2:
+                        break
+                    
+                    current_chunk.append(file_entry)
+                    current_length += entry_length + 2  # +2 for newline
+                
+                # Add remaining files if we haven't hit the field limit
+                if current_chunk and field_count < max_fields - 2:
+                    embed_data['fields'].append({
+                        'name': f'📋 Files (Part {chunk_number})',
+                        'value': '\n'.join(current_chunk),
+                        'inline': False
+                    })
+                    field_count += 1
+                    files_shown_count += len(current_chunk)
+                
+                # If we couldn't show all files, add a note
+                if files_shown_count < len(file_list):
+                    remaining = len(file_list) - files_shown_count
+                    if remaining > 0:
+                        embed_data['fields'].append({
+                            'name': '📊 Summary',
+                            'value': f'And {remaining} more files not shown due to Discord limits.',
+                            'inline': False
+                        })
+                
+                # Debug: print embed data size
+                print(f"Discord embed: {len(embed_data['fields'])} fields, total files: {len(uploaded_files)}, shown: {files_shown_count}")
+                
+                response = requests.post(discord_webhook, json={'embeds': [embed_data]})
+                print(f"Discord webhook response: {response.status_code}")
+                if response.status_code != 204:
+                    print(f"Discord webhook error: {response.text}")
+                else:
+                    print("Discord webhook sent for bulk upload")
             except Exception as e:
                 print(f"Error sending Discord webhook: {e}")
+                import traceback
+                traceback.print_exc()
         
         return jsonify({
             'success': True,

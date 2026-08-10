@@ -89,7 +89,7 @@ async function fetchVideoInfo() {
     showLoading();
 
     try {
-        const response = await fetch('/api/info', {
+        const response = await fetch('/api/video-info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url })

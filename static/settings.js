@@ -216,7 +216,7 @@ function saveSettings() {
 }
 
 function resetSettings() {
-    showModal(
+    dangerModal(
         'Reset Settings',
         'Are you sure you want to reset all settings to default values?',
         () => {
@@ -251,28 +251,6 @@ function showNotification(message) {
     }, 2000);
 }
 
-function showModal(title, message, callback) {
-    const modal = document.getElementById('customModal');
-    if (!modal) {
-        if (confirm(message)) callback();
-        return;
-    }
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalMessage').textContent = message;
-    modalCallback = callback;
-    modal.classList.remove('hidden');
-}
-
-function hideModal() {
-    const modal = document.getElementById('customModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-    modalCallback = null;
-}
-
-let modalCallback = null;
-
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
@@ -306,21 +284,4 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeAttribute('data-theme');
         }
     });
-    
-    // Modal event listeners
-    const modalClose = document.getElementById('modalClose');
-    const modalCancel = document.getElementById('modalCancel');
-    const modalConfirm = document.getElementById('modalConfirm');
-    const modalOverlay = document.querySelector('.modal-overlay');
-    
-    if (modalClose) modalClose.addEventListener('click', hideModal);
-    if (modalCancel) modalCancel.addEventListener('click', hideModal);
-    if (modalConfirm) modalConfirm.addEventListener('click', () => {
-        if (modalCallback) {
-            modalCallback();
-            modalCallback = null;
-        }
-        hideModal();
-    });
-    if (modalOverlay) modalOverlay.addEventListener('click', hideModal);
 });
