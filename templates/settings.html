@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - YouTube Downloader</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22.54 6.42a2 2 0 0 0-3.5 0l-9.6 9.6a2 2 0 0 0 0 3.5 0l9.6-9.6a2 2 0 0 0 0-3.5 0m-16.97 0l9.6 9.6a2 2 0 0 0 0 3.5 0l9.6-9.6a2 2 0 0 0 0-3.5 0"></path>
+                    </svg>
+                    <span>YT Downloader</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav"></nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Settings</h1>
+                <p class="subtitle">Configure your downloader preferences</p>
+                <div style="margin-top: 16px;">
+                    <button id="cleanupPartBtn" class="btn-cleanup">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Clean up .part files
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-group">
+                    <h3>Download Preferences</h3>
+                    <div class="setting-item">
+                        <label for="defaultQuality">Default Quality</label>
+                        <select id="defaultQuality" class="setting-select">
+                            <option value="best">Best Quality</option>
+                            <option value="1080p">1080p</option>
+                            <option value="720p">720p</option>
+                            <option value="480p">480p</option>
+                            <option value="360p">360p</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="downloadFolder">Download Folder</label>
+                        <div class="folder-input">
+                            <input type="text" id="downloadFolder" class="setting-input" readonly>
+                            <button class="btn-secondary">Browse</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="maxConcurrent">Max Concurrent Downloads</label>
+                        <input type="number" id="maxConcurrent" class="setting-input" min="1" max="5" value="3">
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Filename Settings</h3>
+                    <div class="setting-item">
+                        <label for="filenameTemplate">Filename Template</label>
+                        <input type="text" id="filenameTemplate" class="setting-input" placeholder="{title}_{quality}_{date}">
+                        <small>Available: {title}, {uploader}, {date}, {quality}, {id}</small>
+                    </div>
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoRename">
+                            <span>Auto-rename if file exists</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Interface Settings</h3>
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoFetch" checked>
+                            <span>Auto-fetch on paste</span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="notifications" checked>
+                            <span>Download notifications</span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label for="theme">Theme</label>
+                        <select id="theme" class="setting-select">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                            <option value="auto">Auto</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Cloud Archive (Backblaze B2)</h3>
+                    <div class="storage-info-box" id="storageInfoBox">
+                        <div class="storage-info-header">
+                            <span class="storage-info-title">Storage Usage</span>
+                            <button class="btn-refresh-storage" id="refreshStorageBtn" title="Refresh">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M1 20v-6h6"></path>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="storage-info-content" id="storageInfoContent">
+                            <div class="storage-info-placeholder">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <span>Click refresh to check storage</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label for="b2BucketName">B2 Bucket Name</label>
+                        <input type="text" id="b2BucketName" class="setting-input" placeholder="ZeroNuxs">
+                    </div>
+                    <div class="setting-item">
+                        <label for="b2EndpointUrl">B2 Endpoint URL</label>
+                        <input type="text" id="b2EndpointUrl" class="setting-input" placeholder="https://s3.eu-central-003.backblazeb2.com">
+                    </div>
+                    <div class="setting-item">
+                        <label for="b2KeyId">B2 Key ID</label>
+                        <input type="password" id="b2KeyId" class="setting-input" placeholder="Application Key ID">
+                    </div>
+                    <div class="setting-item">
+                        <label for="b2ApplicationKey">B2 Application Key</label>
+                        <input type="password" id="b2ApplicationKey" class="setting-input" placeholder="Application Key">
+                    </div>
+                    <div class="setting-item">
+                        <label for="discordWebhookUrl">Discord Webhook URL</label>
+                        <input type="password" id="discordWebhookUrl" class="setting-input" placeholder="https://discord.com/api/webhooks/...">
+                    </div>
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoUpload">
+                            <span>Automatically upload to cloud after download</span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label for="signedUrlExpiration">Signed URL Expiration (seconds)</label>
+                        <input type="number" id="signedUrlExpiration" class="setting-input" min="60" max="604800" value="604800">
+                        <small>Maximum 7 days (604800 seconds) - B2 limit</small>
+                    </div>
+                    <div class="setting-item">
+                        <label for="storageLimitGB">Storage Limit (GB)</label>
+                        <input type="number" id="storageLimitGB" class="setting-input" min="1" max="10000" value="10">
+                        <small>Your B2 storage quota for tracking usage</small>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="btn-primary" id="saveSettings">Save Settings</button>
+                    <button class="btn-secondary" id="resetSettings">Reset to Defaults</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Global Progress Widget -->
+    <div id="globalProgressWidget" class="global-progress-widget hidden">
+        <div class="global-progress-header">
+            <span class="global-progress-title" id="globalProgressTitle">Downloading...</span>
+            <button class="global-progress-close" id="globalProgressClose">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="global-progress-bar-container">
+            <div class="global-progress-fill" id="globalProgressFill" style="width: 0%"></div>
+        </div>
+        <div class="global-progress-stats">
+            <span id="globalProgressPercent">0%</span>
+            <div id="globalProgressStats" class="global-stats-container"></div>
+        </div>
+        <div class="global-progress-controls">
+            <button class="global-btn-control btn-pause" id="globalProgressPause" title="Pause">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+            </button>
+            <button class="global-btn-control btn-resume hidden" id="globalProgressResume" title="Resume">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+            </button>
+            <button class="global-btn-control btn-stop" id="globalProgressStop" title="Stop">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="/static/sidebar.js"></script>
+    <script src="/static/settings.js"></script>
+    <script src="/static/global-progress.js"></script>
+</body>
+</html>

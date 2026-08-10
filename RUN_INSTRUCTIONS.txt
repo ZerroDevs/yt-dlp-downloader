@@ -1,0 +1,45 @@
+YouTube Downloader - Running Instructions
+==========================================
+
+Option 1: Run with visible window
+---------------------------------
+Double-click: start.bat
+
+This will open a console window showing the server logs.
+The application will be accessible at: http://127.0.0.1:5000
+Keep the window open while using the downloader.
+Press Ctrl+C in the window to stop the server.
+
+
+Option 2: Run in background (hidden)
+------------------------------------
+Double-click: start_hidden.vbs
+
+This will run the application in the background without showing a window.
+The application will still be accessible at: http://127.0.0.1:5000
+
+To stop the background server:
+1. Open Task Manager (Ctrl+Shift+Esc)
+2. Find "python.exe" or "pythonw.exe"
+3. Right-click and select "End Task"
+
+
+Option 3: Run manually
+----------------------
+Open Command Prompt in this folder and run:
+python app.py
+
+
+Requirements
+------------
+- Python 3.7 or higher
+- Required packages (install with: pip install -r requirements.txt)
+
+
+Accessing the Application
+--------------------------
+Once running, open your browser and go to:
+http://127.0.0.1:5000
+
+Note: Using 127.0.0.1 instead of localhost provides faster performance
+as it bypasses DNS resolution.

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "e94935c1-0c77-47c7-ae15-c87715080158",
+    "title": "GR2 / GR3",
+    "url": "https://www.youtube.com/watch?v=miix2fL97Ls",
+    "resolution": "128p",
+    "filename": "GR2_GR3_128p_2026-08-10.mp4",
+    "timestamp": "2026-08-10T01:34:54.691031",
+    "status": "completed",
+    "cloud_status": "uploaded",
+    "cloud_progress": 100,
+    "cloud_file_key": "videos/e94935c1-0c77-47c7-ae15-c87715080158/GR2_GR3_128p_2026-08-10.mp4",
+    "discord_message_id": null,
+    "filesize": 691981,
+    "duration": "",
+    "uploader": "",
+    "thumbnail": "https://i.ytimg.com/vi/miix2fL97Ls/maxresdefault.jpg",
+    "cloud_signed_url": "https://s3.eu-central-003.backblazeb2.com/ZeroNuxs/videos/e94935c1-0c77-47c7-ae15-c87715080158/GR2_GR3_128p_2026-08-10.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0036fa794c47d3a0000000001%2F20260809%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260809T235300Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=f31447861055af0296b8fdc03a33ee867600b1f17ba28670d8a8bfd9ee6bf386"
+  },
+  {
+    "id": "cab7292d-0611-4ad0-a7eb-622ccf3a9d6e",
+    "title": "GR2 / GR3",
+    "url": "https://www.youtube.com/watch?v=miix2fL97Ls",
+    "resolution": "128p",
+    "filename": "GR2_GR3_128p_2026-08-10.mp4",
+    "timestamp": "2026-08-10T01:20:50.810617",
+    "status": "completed",
+    "cloud_status": "not_uploaded",
+    "cloud_progress": 0,
+    "cloud_file_key": null,
+    "discord_message_id": null,
+    "filesize": 691981,
+    "duration": "",
+    "uploader": "",
+    "thumbnail": "https://i.ytimg.com/vi/miix2fL97Ls/maxresdefault.jpg",
+    "cloud_signed_url": null
+  }
+]

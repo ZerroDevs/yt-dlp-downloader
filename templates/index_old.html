@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Downloader</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <div class="main-content">
+            <div class="downloader-container">
+                <div class="header">
+                    <h1>YouTube Video Downloader</h1>
+                    <p class="subtitle">Download videos in your preferred resolution</p>
+                </div>
+
+                <div class="url-input-section">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="urlInput" 
+                            placeholder="Paste YouTube URL here..."
+                            class="url-input"
+                        >
+                        <button id="pasteBtn" class="btn-secondary" title="Paste from clipboard">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                            </svg>
+                        </button>
+                        <button id="fetchBtn" class="btn-primary">
+                            <span>Fetch Video</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loadingSpinner" class="loading-spinner hidden">
+                    <div class="spinner"></div>
+                    <p>Fetching video information...</p>
+                </div>
+
+                <div id="videoInfo" class="video-info hidden">
+                    <button id="dismissVideoBtn" class="btn-dismiss" title="Dismiss video">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="video-thumbnail">
+                        <img id="thumbnail" src="" alt="Video thumbnail">
+                        <button id="previewBtn" class="btn-preview" title="Preview video">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="video-details">
+                        <h2 id="videoTitle">Video Title</h2>
+                        <div class="video-meta">
+                            <span id="videoUploader">Uploader</span>
+                            <span id="videoDuration">Duration</span>
+                            <span id="videoViews">Views</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Preview Modal -->
+                <div id="previewModal" class="modal hidden">
+                    <div class="modal-overlay"></div>
+                    <div class="modal-content preview-modal-content">
+                        <div class="modal-header">
+                            <h3>Video Preview</h3>
+                            <button class="modal-close" id="closePreviewBtn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="video-container">
+                                <iframe id="previewFrame" src="" frameborder="0" allowfullscreen></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="formatSelection" class="format-selection hidden">
+                    <h3>Select Resolution</h3>
+                    
+                    <!-- Quality Presets -->
+                    <div class="quality-presets">
+                        <button class="preset-btn" data-preset="best">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            Best Quality
+                        </button>
+                        <button class="preset-btn" data-preset="smallest">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Smallest Size
+                        </button>
+                        <button class="preset-btn" data-preset="audio">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 18V5l12-2v13"></path>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <circle cx="18" cy="16" r="3"></circle>
+                            </svg>
+                            Audio Only
+                        </button>
+                    </div>
+                    
+                    <div class="filename-input">
+                        <label for="filenameInput">Filename (optional):</label>
+                        <input 
+                            type="text" 
+                            id="filenameInput" 
+                            placeholder="Enter custom filename or leave empty for auto-generated"
+                            class="url-input"
+                        >
+                        <button id="templateHelpBtn" class="btn-small help-btn" title="Filename templates">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="formatList" class="format-list">
+                        <!-- Formats will be inserted here -->
+                    </div>
+                </div>
+
+                <div id="downloadProgress" class="download-progress hidden">
+                    <div class="progress-header">
+                        <h3>Download Progress</h3>
+                        <div class="progress-controls">
+                            <button id="pauseBtn" class="btn-control" title="Pause Download">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <rect x="6" y="4" width="4" height="16"></rect>
+                                    <rect x="14" y="4" width="4" height="16"></rect>
+                                </svg>
+                            </button>
+                            <button id="resumeBtn" class="btn-control hidden" title="Resume Download">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </button>
+                            <button id="cancelMainBtn" class="btn-cancel-small" title="Stop Download">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                                <span>Stop Download</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div id="progressBar" class="progress-fill"></div>
+                        </div>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-stats">
+                        <span id="downloadSpeed">Speed: 0 KB/s</span>
+                        <span id="downloadETA">ETA: Unknown</span>
+                    </div>
+                </div>
+
+
+                <div id="errorMessage" class="error-message hidden">
+                    <div class="error-content">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p id="errorText">Error message</p>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="downloader">Downloader</button>
+                    <button class="tab-btn" data-tab="queue">Download Queue</button>
+                    <button class="tab-btn" data-tab="history">History</button>
+                </div>
+
+                <div id="queueSection" class="tab-content hidden">
+                    <h3>Download Queue</h3>
+                    <div id="queueList" class="queue-list">
+                        <p class="empty-message">No downloads in queue</p>
+                    </div>
+                </div>
+
+                <div id="historySection" class="tab-content hidden">
+                    <div class="history-header">
+                        <h3>Download History</h3>
+                        <button id="clearHistoryBtn" class="btn-small">Clear History</button>
+                    </div>
+                    <div id="historyList" class="history-list">
+                        <p class="empty-message">No download history</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Confirm Action</h3>
+                <button class="modal-close" id="modalClose">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn-danger" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+

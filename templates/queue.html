@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Queue - YouTube Downloader</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="queue-page">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22.54 6.42a2 2 0 0 0-3.5 0l-9.6 9.6a2 2 0 0 0 0 3.5 0l9.6-9.6a2 2 0 0 0 0-3.5 0m-16.97 0l9.6 9.6a2 2 0 0 0 0 3.5 0l9.6-9.6a2 2 0 0 0 0-3.5 0"></path>
+                    </svg>
+                    <span>YT Downloader</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav"></nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <div class="header-title">
+                    <h1>Download Queue</h1>
+                    <p class="subtitle">Manage your active downloads</p>
+                </div>
+            </div>
+
+            <div class="queue-section">
+                <div id="queueList" class="queue-list">
+                    <!-- Queue items will be inserted here -->
+                </div>
+                
+                <div id="emptyQueue" class="empty-state hidden">
+                    <div class="empty-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <h3>Queue is clear</h3>
+                    <p>Recent downloads can be found in your History.</p>
+                    <div class="empty-actions">
+                        <a href="/" class="btn-secondary">Download New</a>
+                        <a href="/history" class="btn-primary">View History</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Action Button -->
+            <button id="cleanupPartBtn" class="fab-cleanup" title="Clean up .part files">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Clean up .part files</span>
+            </button>
+        </main>
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Confirm Action</h3>
+                <button class="modal-close" id="modalClose">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn-danger" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Progress Widget -->
+    <div id="globalProgressWidget" class="global-progress-widget hidden">
+        <div class="global-progress-header">
+            <span class="global-progress-title" id="globalProgressTitle">Downloading...</span>
+            <button class="global-progress-close" id="globalProgressClose">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="global-progress-bar-container">
+            <div class="global-progress-fill" id="globalProgressFill" style="width: 0%"></div>
+        </div>
+        <div class="global-progress-stats">
+            <span id="globalProgressPercent">0%</span>
+            <div id="globalProgressStats" class="global-stats-container"></div>
+        </div>
+        <div class="global-progress-controls">
+            <button class="global-btn-control btn-pause" id="globalProgressPause" title="Pause">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+            </button>
+            <button class="global-btn-control btn-resume hidden" id="globalProgressResume" title="Resume">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+            </button>
+            <button class="global-btn-control btn-stop" id="globalProgressStop" title="Stop">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="/static/sidebar.js"></script>
+    <script src="/static/queue.js"></script>
+    <script src="/static/global-progress.js"></script>
+</body>
+</html>
