@@ -170,7 +170,7 @@ def detect_platform(url):
         return 'TikTok'
     
     # Instagram patterns
-    if 'instagram.com/reel/' in url_lower or 'instagram.com/p/' in url_lower or 'instagram.com/tv/' in url_lower:
+    if 'instagram.com/reel' in url_lower or 'instagram.com/p/' in url_lower or 'instagram.com/tv/' in url_lower:
         return 'Instagram'
     
     # Unsupported

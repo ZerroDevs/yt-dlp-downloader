@@ -1,6 +1,25 @@
 // History page JavaScript
 let historyData = [];
 
+// ────────────────────────────────────────────────────────────
+//  Theme Management
+// ────────────────────────────────────────────────────────────
+function applyTheme() {
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            if (settings.theme === 'light') {
+                document.body.setAttribute('data-theme', 'light');
+            } else if (settings.theme === 'dark') {
+                document.body.removeAttribute('data-theme');
+            }
+        }
+    } catch (error) {
+        console.error('Error applying theme:', error);
+    }
+}
+
 async function loadHistory() {
     try {
         const response = await fetch('/api/history');
@@ -677,6 +696,7 @@ function pollCloudProgress(downloadId) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
     loadHistory();
     
     // Event listeners

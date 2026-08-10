@@ -9,6 +9,25 @@ let selectedPreset = null;
 let autoFetchEnabled = true;
 
 // ────────────────────────────────────────────────────────────
+//  Theme Management
+// ────────────────────────────────────────────────────────────
+function applyTheme() {
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            if (settings.theme === 'light') {
+                document.body.setAttribute('data-theme', 'light');
+            } else if (settings.theme === 'dark') {
+                document.body.removeAttribute('data-theme');
+            }
+        }
+    } catch (error) {
+        console.error('Error applying theme:', error);
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 //  Platform Detection
 // ────────────────────────────────────────────────────────────
 function detectPlatform(url) {
@@ -29,8 +48,8 @@ function detectPlatform(url) {
     }
     
     // Instagram patterns
-    if (urlLower.includes('instagram.com/reel/') || 
-        urlLower.includes('instagram.com/p/') || 
+    if (urlLower.includes('instagram.com/reel') ||
+        urlLower.includes('instagram.com/p/') ||
         urlLower.includes('instagram.com/tv/')) {
         return { name: 'Instagram', color: '#ff6b00', emoji: '🟠', supported: true };
     }
@@ -892,6 +911,8 @@ function hideModal() {
 //  Init
 // ────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    
     // Restore URL input
     const savedUrl = localStorage.getItem('currentUrl');
     if (savedUrl) {

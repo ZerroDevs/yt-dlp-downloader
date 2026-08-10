@@ -7,6 +7,25 @@ let floatingToastId   = null; // tracks the active downloading toast
 let isLoadingState = false; // prevent infinite loop during state loading
 
 // ────────────────────────────────────────────────────────────
+//  Theme Management
+// ────────────────────────────────────────────────────────────
+function applyTheme() {
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            if (settings.theme === 'light') {
+                document.body.setAttribute('data-theme', 'light');
+            } else if (settings.theme === 'dark') {
+                document.body.removeAttribute('data-theme');
+            }
+        }
+    } catch (error) {
+        console.error('Error applying theme:', error);
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 //  LocalStorage Persistence
 // ────────────────────────────────────────────────────────────
 function saveState() {
@@ -140,6 +159,9 @@ if (originalUrlInput) {
 //  Init
 // ────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // Apply theme first
+    applyTheme();
+    
     document.getElementById('fetchBtn').addEventListener('click', fetchVideoInfo);
     document.getElementById('pasteBtn').addEventListener('click', pasteFromClipboard);
     document.getElementById('dismissVideoBtn').addEventListener('click', dismissVideo);

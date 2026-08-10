@@ -22,6 +22,31 @@ const defaultSettings = {
 let currentSettings = { ...defaultSettings };
 
 // ────────────────────────────────────────────────────────────
+//  Tab Navigation
+// ────────────────────────────────────────────────────────────
+function initSettingsNav() {
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const tabs = document.querySelectorAll('.settings-tab');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const tabName = item.dataset.tab;
+
+            // Update nav items
+            navItems.forEach(nav => nav.classList.remove('active'));
+            item.classList.add('active');
+
+            // Update tabs
+            tabs.forEach(tab => tab.classList.remove('active'));
+            const targetTab = document.getElementById(`${tabName}-tab`);
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
+        });
+    });
+}
+
+// ────────────────────────────────────────────────────────────
 //  Cloud Storage Info
 // ────────────────────────────────────────────────────────────
 async function fetchStorageInfo() {
@@ -254,6 +279,7 @@ function showNotification(message) {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
+    initSettingsNav();
     
     // Event listeners
     document.getElementById('saveSettings').addEventListener('click', saveSettings);

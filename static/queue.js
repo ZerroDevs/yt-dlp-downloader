@@ -1,5 +1,25 @@
 // Queue page JavaScript
 let updateInterval = null;
+
+// ────────────────────────────────────────────────────────────
+//  Theme Management
+// ────────────────────────────────────────────────────────────
+function applyTheme() {
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            if (settings.theme === 'light') {
+                document.body.setAttribute('data-theme', 'light');
+            } else if (settings.theme === 'dark') {
+                document.body.removeAttribute('data-theme');
+            }
+        }
+    } catch (error) {
+        console.error('Error applying theme:', error);
+    }
+}
+
 // #region debug-point shared:report
 const __dbgReport = (hypothesisId, location, msg, data = {}, runId = 'post-fix') => fetch('http://127.0.0.1:7777/event', {
     method: 'POST',
@@ -511,5 +531,17 @@ window.addEventListener('storage', (e) => {
             handleDownloadNotification(notification);
             lastNotificationTimestamp = notification.timestamp;
         }
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    updateQueue();
+    
+    // Cleanup .part files button
+    const cleanupPartBtn = document.getElementById('cleanupPartBtn');
+    if (cleanupPartBtn) {
+        cleanupPartBtn.addEventListener('click', cleanupPartFiles);
     }
 });

@@ -6,6 +6,25 @@ let deleteDownloadId = null;
 let storageLimit = 10; // Default 10GB
 let selectedFiles = new Set(); // Track selected files for bulk operations
 
+// ────────────────────────────────────────────────────────────
+//  Theme Management
+// ────────────────────────────────────────────────────────────
+function applyTheme() {
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            if (settings.theme === 'light') {
+                document.body.setAttribute('data-theme', 'light');
+            } else if (settings.theme === 'dark') {
+                document.body.removeAttribute('data-theme');
+            }
+        }
+    } catch (error) {
+        console.error('Error applying theme:', error);
+    }
+}
+
 // Helper function to get B2 settings from localStorage
 function getB2Settings() {
     try {
@@ -850,6 +869,8 @@ async function handleBulkUpload() {
 let bulkUploadHandlerAttached = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    
     if (bulkUploadHandlerAttached) return;
     
     const fileInput = document.getElementById('bulkFileInput');
