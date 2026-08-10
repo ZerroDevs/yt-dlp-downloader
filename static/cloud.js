@@ -6,6 +6,67 @@ let deleteDownloadId = null;
 let storageLimit = 10; // Default 10GB
 let selectedFiles = new Set(); // Track selected files for bulk operations
 
+// Helper function to get B2 settings from localStorage
+function getB2Settings() {
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (!savedSettings) return null;
+        const settings = JSON.parse(savedSettings);
+        return {
+            bucket_name: settings.b2BucketName,
+            endpoint_url: settings.b2EndpointUrl,
+            key_id: settings.b2KeyId,
+            application_key: settings.b2ApplicationKey
+        };
+    } catch (error) {
+        console.error('Error loading B2 settings:', error);
+        return null;
+    }
+}
+
+// Helper function to get file type icon
+function getFileTypeIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    
+    // Video files
+    if (['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv', 'wmv', 'm4v'].includes(ext)) {
+        return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+            <line x1="7" y1="2" x2="7" y2="22"></line>
+            <line x1="17" y1="2" x2="17" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="2" y1="7" x2="7" y2="7"></line>
+            <line x1="2" y1="17" x2="7" y2="17"></line>
+            <line x1="17" y1="17" x2="22" y2="17"></line>
+            <line x1="17" y1="7" x2="22" y2="7"></line>
+        </svg>`;
+    }
+    
+    // Image files
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico'].includes(ext)) {
+        return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>`;
+    }
+    
+    // Audio files
+    if (['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'].includes(ext)) {
+        return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+        </svg>`;
+    }
+    
+    // Default file icon
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+        <polyline points="13 2 13 9 20 9"></polyline>
+    </svg>`;
+}
+
 // Load storage info
 async function loadStorageInfo() {
     try {
@@ -13,23 +74,19 @@ async function loadStorageInfo() {
         if (!savedSettings) {
             return;
         }
-        
+
         const settings = JSON.parse(savedSettings);
         storageLimit = settings.storageLimit || 10;
-        
+
+        const b2Settings = getB2Settings();
+        if (!b2Settings) return;
+
         const response = await fetch('/api/cloud/storage', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                b2_settings: {
-                    bucket_name: settings.b2BucketName,
-                    endpoint_url: settings.b2EndpointUrl,
-                    key_id: settings.b2KeyId,
-                    application_key: settings.b2ApplicationKey
-                }
-            })
+            body: JSON.stringify({ b2_settings: b2Settings })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             updateStorageDisplay(data);
@@ -113,27 +170,18 @@ function toggleAnalytics() {
 // Load cloud files from API
 async function loadCloudFiles() {
     try {
-        const savedSettings = localStorage.getItem('ytDownloaderSettings');
-        if (!savedSettings) {
+        const b2Settings = getB2Settings();
+        if (!b2Settings) {
             showError('Please configure cloud settings in Settings first');
             return;
         }
-        
-        const settings = JSON.parse(savedSettings);
-        
+
         const response = await fetch('/api/cloud/files', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                b2_settings: {
-                    bucket_name: settings.b2BucketName,
-                    endpoint_url: settings.b2EndpointUrl,
-                    key_id: settings.b2KeyId,
-                    application_key: settings.b2ApplicationKey
-                }
-            })
+            body: JSON.stringify({ b2_settings: b2Settings })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             cloudFiles = data.files || [];
@@ -168,11 +216,11 @@ function renderCloudFiles() {
         const formattedDate = date.toLocaleDateString();
         const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const isSelected = selectedFiles.has(file.key);
-        
+
         // Determine file type for preview
         const isImage = file.filename.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i);
         const isVideo = file.filename.match(/\.(mp4|webm|mkv|avi|mov)$/i);
-        
+
         return `
             <div class="cloud-file-card ${isSelected ? 'selected' : ''}" data-file-key="${file.key}">
                 <div class="cloud-file-checkbox">
@@ -187,6 +235,11 @@ function renderCloudFiles() {
                 ${isVideo ? `
                     <div class="cloud-file-preview">
                         <video src="" data-file-key="${file.key}" class="preview-video" muted preload="metadata"></video>
+                    </div>
+                ` : ''}
+                ${!isImage && !isVideo ? `
+                    <div class="cloud-file-preview cloud-file-icon">
+                        ${getFileTypeIcon(file.filename)}
                     </div>
                 ` : ''}
                 <div class="cloud-file-info">
@@ -232,69 +285,47 @@ function renderCloudFiles() {
     loadFilePreviews();
 }
 
-// Load file previews
+// Load file previews with concurrency limit
 async function loadFilePreviews() {
-    const savedSettings = localStorage.getItem('ytDownloaderSettings');
-    if (!savedSettings) return;
-    
-    const settings = JSON.parse(savedSettings);
-    
-    // Load image previews
+    const b2Settings = getB2Settings();
+    if (!b2Settings) return;
+
+    const BATCH_SIZE = 5;
+
+    // Helper function to load a single preview
+    const loadPreview = async (element, fileKey) => {
+        try {
+            const response = await fetch('/api/cloud/open/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    b2_settings: b2Settings,
+                    file_key: fileKey,
+                    expiration: 3600
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                element.src = data.url;
+            }
+        } catch (error) {
+            console.error('Error loading preview:', error);
+        }
+    };
+
+    // Load image previews in batches
     const images = document.querySelectorAll('.preview-image');
-    for (const img of images) {
-        const fileKey = img.dataset.fileKey;
-        try {
-            const response = await fetch('/api/cloud/open/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    b2_settings: {
-                        bucket_name: settings.b2BucketName,
-                        endpoint_url: settings.b2EndpointUrl,
-                        key_id: settings.b2KeyId,
-                        application_key: settings.b2ApplicationKey
-                    },
-                    file_key: fileKey,
-                    expiration: 3600
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                img.src = data.url;
-            }
-        } catch (error) {
-            console.error('Error loading image preview:', error);
-        }
+    for (let i = 0; i < images.length; i += BATCH_SIZE) {
+        const batch = Array.from(images).slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(img => loadPreview(img, img.dataset.fileKey)));
     }
-    
-    // Load video previews
+
+    // Load video previews in batches
     const videos = document.querySelectorAll('.preview-video');
-    for (const video of videos) {
-        const fileKey = video.dataset.fileKey;
-        try {
-            const response = await fetch('/api/cloud/open/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    b2_settings: {
-                        bucket_name: settings.b2BucketName,
-                        endpoint_url: settings.b2EndpointUrl,
-                        key_id: settings.b2KeyId,
-                        application_key: settings.b2ApplicationKey
-                    },
-                    file_key: fileKey,
-                    expiration: 3600
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                video.src = data.url;
-            }
-        } catch (error) {
-            console.error('Error loading video preview:', error);
-        }
+    for (let i = 0; i < videos.length; i += BATCH_SIZE) {
+        const batch = Array.from(videos).slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(video => loadPreview(video, video.dataset.fileKey)));
     }
 }
 
