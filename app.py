@@ -627,6 +627,16 @@ def update_progress(d, download_id):
             'size': size_str
         })
 
+@app.route('/manifest.webmanifest')
+def manifest():
+    return send_file('static/manifest.webmanifest', mimetype='application/manifest+json')
+
+@app.route('/sw.js')
+def service_worker():
+    response = send_file('static/sw.js', mimetype='application/javascript')
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
 @app.route('/')
 def index():
     return render_template('index.html')

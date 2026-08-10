@@ -142,6 +142,52 @@ body {
     color: var(--primary-color);
 }
 
+.logo-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.pwa-install-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 16px 0;
+    padding: 12px 16px;
+    width: calc(100% - 32px);
+    border: 1px dashed var(--primary-color);
+    border-radius: 12px;
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--primary-color);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pwa-install-btn:hover {
+    background: rgba(99, 102, 241, 0.16);
+    border-style: solid;
+}
+
+.pwa-install-btn.hidden {
+    display: none;
+}
+
+.sidebar.collapsed .pwa-install-btn span {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+.sidebar.collapsed .pwa-install-btn {
+    justify-content: center;
+    padding: 12px;
+}
+
 .sidebar-nav {
     flex: 1;
     padding: 16px;
