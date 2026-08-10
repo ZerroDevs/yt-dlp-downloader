@@ -3228,6 +3228,39 @@ body {
     opacity: 0.5;
 }
 
+/* Local Storage Usage Display */
+.storage-usage-display {
+    margin-top: 8px;
+}
+
+.storage-usage-bar {
+    height: 8px;
+    background: var(--input-bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.storage-usage-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), #8b5cf6);
+    border-radius: 4px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.storage-usage-text {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.storage-usage-text span:last-child {
+    margin-left: auto;
+    font-weight: 600;
+}
+
 /* Queue Progress */
 .queue-progress {
     margin-top: 8px;

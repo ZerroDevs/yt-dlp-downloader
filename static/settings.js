@@ -22,6 +22,50 @@ const defaultSettings = {
 let currentSettings = { ...defaultSettings };
 
 // ────────────────────────────────────────────────────────────
+//  Local Storage Usage
+// ────────────────────────────────────────────────────────────
+function calculateLocalStorageUsage() {
+    let total = 0;
+    
+    for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+            total += localStorage[key].length + key.length;
+        }
+    }
+    
+    return total; // in bytes
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+function updateLocalStorageDisplay() {
+    const used = calculateLocalStorageUsage();
+    const limit = 5 * 1024 * 1024; // 5 MB typical limit
+    const percentage = Math.min(100, (used / limit) * 100);
+    
+    document.getElementById('localStorageUsed').textContent = formatBytes(used);
+    document.getElementById('localStorageLimit').textContent = formatBytes(limit);
+    document.getElementById('localStoragePercent').textContent = `(${percentage.toFixed(1)}%)`;
+    document.getElementById('localStorageFill').style.width = `${percentage}%`;
+    
+    // Change color based on usage
+    const fill = document.getElementById('localStorageFill');
+    if (percentage > 90) {
+        fill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+    } else if (percentage > 75) {
+        fill.style.background = 'linear-gradient(90deg, #f59e0b, #d97706)';
+    } else {
+        fill.style.background = 'linear-gradient(90deg, var(--primary-color), #8b5cf6)';
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 //  Tab Navigation
 // ────────────────────────────────────────────────────────────
 function initSettingsNav() {
@@ -280,6 +324,7 @@ function showNotification(message) {
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     initSettingsNav();
+    updateLocalStorageDisplay();
     
     // Event listeners
     document.getElementById('saveSettings').addEventListener('click', saveSettings);

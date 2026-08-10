@@ -1,5 +1,5 @@
-YouTube Downloader - Running Instructions
-==========================================
+Video Downloader - Running Instructions
+======================================
 
 Option 1: Run with visible window
 ---------------------------------
@@ -32,8 +32,9 @@ python app.py
 
 Requirements
 ------------
-- Python 3.7 or higher
+- Python 3.8 or higher
 - Required packages (install with: pip install -r requirements.txt)
+- FFmpeg (for video conversion to MP4 format)
 
 
 Accessing the Application
@@ -43,3 +44,23 @@ http://127.0.0.1:5000
 
 Note: Using 127.0.0.1 instead of localhost provides faster performance
 as it bypasses DNS resolution.
+
+
+Supported Platforms
+------------------
+- YouTube (videos, shorts, playlists)
+- TikTok (videos, profile links)
+- Instagram (reels, posts, TV videos)
+
+
+Features
+--------
+- Multi-platform video downloading
+- Smart platform detection
+- Real-time download progress
+- Queue system for multiple downloads
+- Download history with re-download option
+- Cloud integration (Backblaze B2)
+- Dark/Light theme support
+- Custom filename templates
+- Local storage usage tracking
