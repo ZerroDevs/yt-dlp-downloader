@@ -26,6 +26,14 @@ const sidebarNavigation = [
         label: 'History'
     },
     {
+        href: '/player',
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+        </svg>`,
+        label: 'Player'
+    },
+    {
         href: '/cloud',
         icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

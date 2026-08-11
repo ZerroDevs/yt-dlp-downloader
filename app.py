@@ -28,6 +28,7 @@ app = Flask(__name__)
 # Configuration
 DOWNLOAD_FOLDER = 'downloads'
 HISTORY_FILE = 'download_history.json'
+PLAYER_METADATA_FILE = 'player_metadata.json'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
@@ -48,6 +49,7 @@ DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
 # Lock for thread-safe history operations
 import threading
 history_lock = threading.Lock()
+player_metadata_lock = threading.Lock()
 
 # Load history from file
 def load_history():
@@ -74,6 +76,32 @@ def save_history(history):
             print(f"History saved to {HISTORY_FILE} with {len(history)} entries")
         except Exception as e:
             print(f"Error saving history: {e}")
+            import traceback
+            traceback.print_exc()
+
+# Load player metadata from file
+def load_player_metadata():
+    with player_metadata_lock:
+        if os.path.exists(PLAYER_METADATA_FILE):
+            try:
+                with open(PLAYER_METADATA_FILE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                return []
+        return []
+
+# Save player metadata to file
+def save_player_metadata(metadata):
+    with player_metadata_lock:
+        try:
+            temp_file = PLAYER_METADATA_FILE + '.tmp'
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=2)
+            import shutil
+            shutil.move(temp_file, PLAYER_METADATA_FILE)
+            print(f"Player metadata saved to {PLAYER_METADATA_FILE} with {len(metadata)} entries")
+        except Exception as e:
+            print(f"Error saving player metadata: {e}")
             import traceback
             traceback.print_exc()
 
@@ -150,11 +178,11 @@ def sanitize_filename(filename):
     filename = re.sub(r'[^\x00-\x7F]+', '', filename)
     # Remove leading/trailing spaces and dots
     filename = filename.strip('. ')
-    # Replace multiple spaces with single space
-    filename = re.sub(r'\s+', '_', filename)
-    # Limit length to avoid path length issues (keep it under 80 chars)
-    if len(filename) > 80:
-        filename = filename[:80]
+    # Replace multiple spaces with single space (keep spaces for readability)
+    filename = re.sub(r'\s+', ' ', filename)
+    # Limit length to avoid path length issues (keep it under 100 chars for titles)
+    if len(filename) > 100:
+        filename = filename[:100]
     return filename or 'video'
 
 def detect_platform(url):
@@ -384,7 +412,7 @@ def format_duration(seconds):
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"
 
-def download_video(url, format_id, download_id, title, resolution, actual_resolution=None, custom_filename=None, custom_folder=None, thumbnail=None, is_audio=False, platform='YouTube'):
+def download_video(url, format_id, download_id, title, resolution, actual_resolution=None, custom_filename=None, custom_folder=None, thumbnail=None, is_audio=False, platform='YouTube', uploader='', save_metadata=False):
     """Download video in background thread with pause/resume support"""
     # Determine filename once at the start
     if custom_filename and custom_filename.strip():
@@ -394,6 +422,9 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
         if safe_custom.endswith('.mp4') or safe_custom.endswith('.mp3') or safe_custom.endswith('.m4a'):
             safe_custom = safe_custom[:-4]
         filename = safe_custom
+    elif save_metadata and is_audio:
+        # For player downloads, use the sanitized title as filename (title only)
+        filename = sanitize_filename(title)
     else:
         # Use only first 8 chars of UUID to keep it short
         short_id = download_id[:8]
@@ -416,7 +447,9 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
             'paused': False,
             'timestamp': datetime.now().isoformat(),
             'filename': f"{filename}{file_ext}",
-            'download_path': None  # Will be set after determining the actual path
+            'download_path': None,  # Will be set after determining the actual path
+            'duration': '',  # Will be populated from video info
+            'uploader': uploader or ''
         }
         
         # Use custom folder if provided and exists/can be created
@@ -436,6 +469,20 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
         
         # Store the actual download path for cleanup
         download_status[download_id]['download_path'] = downloads_path
+        
+        # Fetch video info to get duration
+        video_duration = ''
+        try:
+            with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if info:
+                    video_duration = format_duration(info.get('duration', 0))
+                    download_status[download_id]['duration'] = video_duration
+                    if not uploader:
+                        uploader = info.get('uploader', '')
+                        download_status[download_id]['uploader'] = uploader
+        except Exception as e:
+            print(f"Error fetching video info for duration: {e}")
         
         output_template = os.path.join(downloads_path, f"{filename}.%(ext)s")
         
@@ -534,26 +581,87 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
         
         # Get actual file size from disk
         try:
-            file_path = os.path.join(downloads_path, f"{filename}.mp4")
+            file_path = os.path.join(downloads_path, f"{filename}{file_ext}")
             if os.path.exists(file_path):
                 download_status[download_id]['size_bytes'] = os.path.getsize(file_path)
         except Exception as e:
             print(f"Error getting file size: {e}")
+        
+        # Download and save thumbnail (for all downloads)
+        thumbnail_filename = ''
+        if thumbnail:
+            try:
+                import requests
+                response = requests.get(thumbnail, timeout=10)
+                if response.status_code == 200:
+                    thumbnail_filename = f"{filename}.jpg"
+                    thumbnail_path = os.path.join(downloads_path, thumbnail_filename)
+                    with open(thumbnail_path, 'wb') as f:
+                        f.write(response.content)
+                    print(f"Saved thumbnail to: {thumbnail_path}")
+            except Exception as e:
+                print(f"Error downloading thumbnail: {e}")
+        
+        # Save metadata JSON file if requested (for player downloads)
+        if save_metadata:
+            try:
+                # Normalize platform to string
+                platform_str = platform
+                if isinstance(platform, dict):
+                    platform_str = platform.get('name', 'Unknown')
+                elif not isinstance(platform, str):
+                    platform_str = str(platform)
+                
+                metadata = {
+                    'title': title,
+                    'url': url,
+                    'platform': platform_str,
+                    'thumbnail': thumbnail or '',
+                    'thumbnail_filename': thumbnail_filename,
+                    'uploader': uploader or '',
+                    'resolution': resolution,
+                    'filename': f"{filename}{file_ext}",
+                    'duration': download_status[download_id].get('duration', ''),
+                    'filesize': download_status[download_id].get('size_bytes', 0),
+                    'timestamp': datetime.now().isoformat(),
+                    'download_id': download_id
+                }
+                
+                # Load existing metadata, add new entry, save
+                player_metadata = load_player_metadata()
+                player_metadata.append(metadata)
+                save_player_metadata(player_metadata)
+                
+                print(f"Saved metadata to central player_metadata.json")
+            except Exception as e:
+                print(f"Error saving metadata: {e}")
         
         # Remove from queue
         if download_id in download_queue:
             download_queue.remove(download_id)
         
         # Add to history
+        # Ensure platform is a simple string (normalize if it's an object)
+        platform_str = platform
+        if isinstance(platform, dict):
+            platform_str = platform.get('name', 'Unknown')
+        elif not isinstance(platform, str):
+            platform_str = str(platform)
+        
+        # Show "Audio" for MP3 files instead of resolution
+        display_resolution = 'Audio' if is_audio else resolution
+        
         history_entry = {
             'id': download_id,
             'title': title,
             'url': url,
-            'resolution': resolution,
-            'filename': f"{filename}.mp4",
+            'resolution': display_resolution,
+            'filename': f"{filename}{file_ext}",  # Use correct extension based on audio/video
             'timestamp': datetime.now().isoformat(),
             'status': 'completed',
-            'platform': platform,  # Add platform to history
+            'platform': platform_str,  # Ensure platform is always a string
+            'thumbnail': thumbnail or '',  # Save thumbnail URL to history
+            'thumbnail_filename': thumbnail_filename,  # Save local thumbnail filename
             # Cloud Archive fields
             'cloud_status': 'not_uploaded',  # not_uploaded, uploading, uploaded, failed
             'cloud_progress': 0,
@@ -561,8 +669,7 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
             'discord_message_id': '',
             'filesize': download_status[download_id].get('size_bytes', 0),
             'duration': download_status[download_id].get('duration', ''),
-            'uploader': download_status[download_id].get('uploader', ''),
-            'thumbnail': download_status[download_id].get('thumbnail', '')
+            'uploader': download_status[download_id].get('uploader', '')
         }
         download_history.insert(0, history_entry)
         save_history(download_history)
@@ -660,6 +767,197 @@ def settings():
     """Settings page"""
     return render_template('settings.html')
 
+@app.route('/player')
+def player():
+    """Music player page"""
+    return render_template('player.html')
+
+@app.route('/api/player/files', methods=['POST'])
+def list_player_files():
+    """API endpoint to list audio files in player folder"""
+    try:
+        data = request.json
+        folder = data.get('folder')
+        
+        if not folder or not os.path.exists(folder):
+            return jsonify({'files': []})
+        
+        files = []
+        for filename in os.listdir(folder):
+            if filename.lower().endswith('.mp3') or filename.lower().endswith('.mp4'):
+                filepath = os.path.join(folder, filename)
+                if os.path.isfile(filepath):
+                    files.append({
+                        'name': filename,
+                        'path': filepath,
+                        'size': os.path.getsize(filepath),
+                        'modified': os.path.getmtime(filepath)
+                    })
+        
+        # Sort by filename
+        files.sort(key=lambda x: x['name'].lower())
+        
+        return jsonify({'files': files})
+    except Exception as e:
+        print(f"Error listing player files: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/player/metadata')
+def get_player_metadata():
+    """API endpoint to get player metadata from central JSON"""
+    try:
+        metadata = load_player_metadata()
+        return jsonify({'metadata': metadata})
+    except Exception as e:
+        print(f"Error loading player metadata: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/player/delete', methods=['POST'])
+def delete_player_file():
+    """API endpoint to delete a file from player folder"""
+    try:
+        data = request.json
+        filename = data.get('filename')
+        folder = data.get('folder')
+        
+        if not filename or not folder:
+            return jsonify({'error': 'Filename and folder required'}), 400
+        
+        filepath = os.path.join(folder, filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        
+        os.remove(filepath)
+        
+        # Also try to delete corresponding metadata entry and thumbnail
+        try:
+            player_metadata = load_player_metadata()
+            
+            # Find the metadata entry - try exact match first, then by download_id, then by base name
+            meta_entry = next((m for m in player_metadata if m.get('filename') == filename), None)
+            
+            if not meta_entry:
+                # Try matching by base name (without extension)
+                base_name = os.path.splitext(filename)[0]
+                meta_entry = next((m for m in player_metadata if os.path.splitext(m.get('filename', ''))[0] == base_name), None)
+            
+            if not meta_entry:
+                # Try matching by download_id if available
+                # Extract download_id from filename if it's in the format like "Superman_da5f2c6f.mp3"
+                import re
+                match = re.search(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})', filename)
+                if match:
+                    download_id = match.group(1)
+                    meta_entry = next((m for m in player_metadata if m.get('download_id') == download_id), None)
+            
+            # Delete thumbnail file if it exists
+            if meta_entry and meta_entry.get('thumbnail_filename'):
+                thumbnail_path = os.path.join(folder, meta_entry['thumbnail_filename'])
+                if os.path.exists(thumbnail_path):
+                    os.remove(thumbnail_path)
+                    print(f"Deleted thumbnail: {thumbnail_path}")
+            
+            # Remove metadata entry if found
+            if meta_entry:
+                player_metadata = [m for m in player_metadata if m.get('filename') != meta_entry.get('filename')]
+                save_player_metadata(player_metadata)
+                print(f"Removed metadata entry for: {meta_entry.get('filename')}")
+            else:
+                print(f"No metadata entry found for: {filename}")
+        except Exception as e:
+            print(f"Error updating metadata after delete: {e}")
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/player/rename', methods=['POST'])
+def rename_player_file():
+    """API endpoint to rename a file in player folder"""
+    try:
+        data = request.json
+        old_filename = data.get('oldFilename')
+        new_filename = data.get('newFilename')
+        folder = data.get('folder')
+        
+        if not old_filename or not new_filename or not folder:
+            return jsonify({'error': 'Old filename, new filename, and folder required'}), 400
+        
+        old_path = os.path.join(folder, old_filename)
+        new_path = os.path.join(folder, new_filename)
+        
+        if not os.path.exists(old_path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        if os.path.exists(new_path):
+            return jsonify({'error': 'File with that name already exists'}), 400
+        
+        os.rename(old_path, new_path)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error renaming file: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/player/update-metadata', methods=['POST'])
+def update_player_metadata():
+    """API endpoint to update player metadata"""
+    try:
+        data = request.json
+        metadata = data.get('metadata')
+        
+        if not metadata:
+            return jsonify({'error': 'Metadata required'}), 400
+        
+        save_player_metadata(metadata)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error updating metadata: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/player/thumbnail')
+def get_player_thumbnail():
+    """API endpoint to serve thumbnail image"""
+    try:
+        filename = request.args.get('filename')
+        folder = request.args.get('folder')
+        
+        if not filename or not folder:
+            return jsonify({'error': 'Filename and folder parameters required'}), 400
+        
+        filepath = os.path.join(folder, filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'Thumbnail not found'}), 404
+        
+        return send_file(filepath, mimetype='image/jpeg')
+    except Exception as e:
+        print(f"Error serving thumbnail: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/player/play')
+def play_audio():
+    """API endpoint to stream audio file"""
+    try:
+        file = request.args.get('file')
+        folder = request.args.get('folder')
+        
+        if not file or not folder:
+            return jsonify({'error': 'File and folder parameters required'}), 400
+        
+        filepath = os.path.join(folder, file)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        
+        return send_file(filepath, mimetype='audio/mpeg')
+    except Exception as e:
+        print(f"Error playing audio: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/video-info', methods=['POST'])
 def get_video_info_api():
     """API endpoint to get video info"""
@@ -709,9 +1007,14 @@ def start_download():
     queue_position = len(download_queue) + 1
     download_queue.append(download_id)
     
-    # Process filename template
+    # Process filename template (skip for player downloads)
     uploader = data.get('uploader', '')
-    if custom_filename:
+    save_metadata = data.get('save_metadata', False)
+    
+    if save_metadata and is_audio:
+        # For player downloads, don't use filename template - use title only
+        custom_filename = None
+    elif custom_filename:
         custom_filename = process_filename_template(custom_filename, title, resolution, download_id, uploader)
     elif filename_template:
         # Use template from settings if no custom filename provided
@@ -721,7 +1024,7 @@ def start_download():
     actual_resolution = data.get('actual_resolution')
     
     # Start download in background thread
-    thread = threading.Thread(target=download_video, args=(url, format_id, download_id, title, resolution, actual_resolution, custom_filename, download_folder, thumbnail, is_audio, platform))
+    thread = threading.Thread(target=download_video, args=(url, format_id, download_id, title, resolution, actual_resolution, custom_filename, download_folder, thumbnail, is_audio, platform, uploader, save_metadata))
     thread.daemon = True
     thread.start()
     

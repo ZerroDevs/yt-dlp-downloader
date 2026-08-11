@@ -2,6 +2,7 @@
 const defaultSettings = {
     defaultQuality: 'best',
     downloadFolder: '',
+    playerFolder: '',
     maxConcurrent: 3,
     filenameTemplate: '{title}_{quality}_{date}',
     autoRename: false,
@@ -226,9 +227,27 @@ async function browseFolder() {
     }
 }
 
+async function browsePlayerFolder() {
+    try {
+        const response = await fetch('/api/browse-folder', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.folderpath) {
+            document.getElementById('playerFolder').value = data.folderpath;
+            saveSettings();
+        } else if (data.error) {
+            showError('Error opening folder picker: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error browsing for folder:', error);
+        showError('Unable to open folder picker');
+    }
+}
+
 function applySettingsToUI() {
     document.getElementById('defaultQuality').value = currentSettings.defaultQuality;
     document.getElementById('downloadFolder').value = currentSettings.downloadFolder;
+    document.getElementById('playerFolder').value = currentSettings.playerFolder || '';
     document.getElementById('maxConcurrent').value = currentSettings.maxConcurrent;
     document.getElementById('filenameTemplate').value = currentSettings.filenameTemplate;
     document.getElementById('autoRename').checked = currentSettings.autoRename;
@@ -257,6 +276,7 @@ function applySettingsToUI() {
 function saveSettings() {
     currentSettings.defaultQuality = document.getElementById('defaultQuality').value;
     currentSettings.downloadFolder = document.getElementById('downloadFolder').value;
+    currentSettings.playerFolder = document.getElementById('playerFolder').value;
     currentSettings.maxConcurrent = parseInt(document.getElementById('maxConcurrent').value);
     currentSettings.filenameTemplate = document.getElementById('filenameTemplate').value;
     currentSettings.autoRename = document.getElementById('autoRename').checked;
@@ -334,6 +354,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const browseBtn = document.querySelector('.folder-input .btn-secondary');
     if (browseBtn) {
         browseBtn.addEventListener('click', browseFolder);
+    }
+    
+    // Browse player folder button
+    const browsePlayerBtn = document.getElementById('browsePlayerFolder');
+    if (browsePlayerBtn) {
+        browsePlayerBtn.addEventListener('click', browsePlayerFolder);
     }
     
     // Cleanup .part files button

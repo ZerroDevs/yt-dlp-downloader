@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player - Video Downloader</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2'><path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'></path></svg>">
+    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/player.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                    <span>YT Downloader</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav"></nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <div class="header-title">
+                    <h1>Music Player</h1>
+                    <p class="subtitle">Play your downloaded audio files</p>
+                </div>
+            </div>
+
+            <div class="player-container">
+                <!-- Now Playing Card -->
+                <div class="now-playing-card">
+                    <div class="album-art" id="albumArt" style="display: none;">
+                        <img id="albumArtImage" src="" alt="Album Art">
+                    </div>
+                    <div class="track-info">
+                        <h2 id="currentTrackTitle">No track playing</h2>
+                        <p id="currentTrackArtist">Select a track to play</p>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <div class="progress-time" id="currentTime">0:00</div>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    <div class="progress-time" id="totalTime">0:00</div>
+                </div>
+
+                <!-- Playback Controls -->
+                <div class="playback-controls">
+                    <button class="control-btn" id="shuffleBtn" title="Shuffle">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 3 21 3 21 8"></polyline>
+                            <line x1="4" y1="20" x2="21" y2="3"></line>
+                            <polyline points="21 16 21 21 16 21"></polyline>
+                            <line x1="15" y1="15" x2="21" y2="21"></line>
+                            <line x1="4" y1="4" x2="9" y2="9"></line>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="prevBtn" title="Previous">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                            <line x1="5" y1="19" x2="5" y2="5"></line>
+                        </svg>
+                    </button>
+                    <button class="play-btn" id="playPauseBtn" title="Play/Pause">
+                        <svg id="playIcon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <svg id="pauseIcon" class="hidden" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="nextBtn" title="Next">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                            <line x1="19" y1="5" x2="19" y2="19"></line>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="repeatBtn" title="Repeat">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="17 1 21 5 17 9"></polyline>
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                            <polyline points="7 23 3 19 7 15"></polyline>
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Volume Control -->
+                <div class="volume-control">
+                    <button class="volume-btn" id="muteBtn" title="Mute/Unmute">
+                        <svg id="volumeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        <svg id="muteIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                        </svg>
+                    </button>
+                    <div class="volume-slider-wrapper">
+                        <div class="volume-slider">
+                            <div class="volume-fill" id="volumeFill"></div>
+                        </div>
+                        <input type="range" id="volumeSlider" min="0" max="100" value="100" class="volume-input">
+                    </div>
+                    <span class="volume-percentage" id="volumePercentage">100%</span>
+                </div>
+
+                <!-- Playlist Section -->
+                <div class="playlist-section">
+                    <div class="playlist-header">
+                        <div class="playlist-title">
+                            <h3>Playlist</h3>
+                            <span class="playlist-count" id="playlistCount">0 tracks</span>
+                        </div>
+                        <div class="playlist-controls">
+                            <button class="btn-icon" id="refreshPlaylistBtn" title="Refresh">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M1 20v-6h6"></path>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                </svg>
+                            </button>
+                            <select id="playlistSelector" class="playlist-selector">
+                                <option value="all">All Tracks</option>
+                            </select>
+                            <button class="btn-icon" id="createPlaylistBtn" title="Create Playlist">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="playlist" id="playlist"></div>
+                </div>
+            </div>
+
+            <!-- Floating Download Button -->
+            <button class="fab-download" id="toggleDownloadPanelBtn" title="Download to Player">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </button>
+
+            <!-- Download Panel -->
+            <div class="download-panel hidden" id="downloadPanel">
+                <div class="download-panel-content">
+                    <div class="download-panel-header">
+                        <h3>Download to Player</h3>
+                        <button class="btn-icon" id="closeDownloadPanelBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="download-panel-body">
+                        <div class="form-group">
+                            <label>URL</label>
+                            <input type="text" id="downloadUrl" class="url-input" placeholder="Paste YouTube or other supported URL">
+                        </div>
+                        <div class="form-group">
+                            <label>Format</label>
+                            <select id="downloadFormat" class="url-input">
+                                <option value="audio">Audio (MP3)</option>
+                                <option value="video">Video (MP4)</option>
+                            </select>
+                        </div>
+                        <button class="btn-primary" id="startDownloadBtn" style="width: 100%;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Start Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Global Progress Widget -->
+        <div id="globalProgressWidget" class="global-progress-widget hidden">
+            <div class="global-progress-header">
+                <span class="global-progress-title" id="globalProgressTitle">Downloading...</span>
+                <button class="global-progress-close" id="globalProgressClose">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="global-progress-bar-container">
+                <div class="global-progress-fill" id="globalProgressFill" style="width: 0%"></div>
+            </div>
+            <div class="global-progress-stats">
+                <span id="globalProgressPercent">0%</span>
+                <div id="globalProgressStats" class="global-stats-container"></div>
+            </div>
+            <div class="global-progress-controls">
+                <button class="global-btn-control btn-pause" id="globalProgressPause" title="Pause">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="6" y="4" width="4" height="16"></rect>
+                        <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                </button>
+                <button class="global-btn-control btn-resume hidden" id="globalProgressResume" title="Resume">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </button>
+                <button class="global-btn-control btn-stop" id="globalProgressStop" title="Stop">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <audio id="audioPlayer" style="display: none;"></audio>
+    </div>
+
+    <script src="/static/modal.js"></script>
+    <script src="/static/sidebar.js"></script>
+    <script src="/static/global-progress.js"></script>
+    <script src="/static/player.js"></script>
+</body>
+</html>

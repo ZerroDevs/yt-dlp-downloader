@@ -239,9 +239,19 @@ function displayFormats(formats) {
                 <span class="codec">H.264</span>
                 <span class="quality">${format.quality_label || 'Standard'}</span>
             </div>
-            <button class="btn-download" data-format-id="${format.id}">Download</button>
+            <div class="format-actions">
+                <button class="btn-download" data-format-id="${format.id}">Download</button>
+                <button class="btn-download-player" data-format-id="${format.id}" title="Download to Player">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                    </svg>
+                    Player
+                </button>
+            </div>
         `;
         card.querySelector('.btn-download').addEventListener('click', () => startDownload(format.id));
+        card.querySelector('.btn-download-player').addEventListener('click', () => startDownloadToPlayer(format.id));
         formatList.appendChild(card);
     });
 
@@ -365,6 +375,66 @@ async function startDownload(formatId) {
 
         // Show notification when download starts
         showDownloadNotification('Download Started', 'started', title);
+
+        if (progressInterval) clearInterval(progressInterval);
+        progressInterval = setInterval(checkProgress, 1000);
+
+    } catch (error) {
+        showError(error.message);
+    }
+}
+
+// ────────────────────────────────────────────────────────────
+//  Download to Player
+// ────────────────────────────────────────────────────────────
+async function startDownloadToPlayer(formatId) {
+    const url = document.getElementById('urlInput').value.trim();
+    const title = document.getElementById('videoTitle').textContent;
+    const uploader = document.getElementById('videoUploader').textContent;
+    const thumbnail = document.querySelector('.video-thumbnail img')?.src || '';
+    
+    // Get player folder from settings
+    let playerFolder = '';
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            playerFolder = settings.playerFolder || '';
+        }
+    } catch(e) {}
+    
+    if (!playerFolder) {
+        showError('Please configure player folder in settings first');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                url, 
+                format_id: formatId, 
+                title, 
+                download_folder: playerFolder,
+                preset: 'audio', // Force audio-only for player
+                platform: detectPlatform(url),
+                uploader: uploader,
+                thumbnail: thumbnail,
+                save_metadata: true // Save metadata JSON for player
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to start download');
+
+        currentDownloadId = data.download_id;
+
+        document.getElementById('formatSelection').classList.add('hidden');
+        document.getElementById('downloadProgress').classList.remove('hidden');
+
+        showFloatingDownloadCard(currentDownloadId, title, 'Audio');
+
+        showDownloadNotification('Download to Player Started', 'started', title);
 
         if (progressInterval) clearInterval(progressInterval);
         progressInterval = setInterval(checkProgress, 1000);

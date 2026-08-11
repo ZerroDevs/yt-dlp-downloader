@@ -2,6 +2,16 @@
 let globalProgressInterval = null;
 let currentDownloadId = null;
 
+// Make currentDownloadId accessible and settable from other scripts
+window.setCurrentDownloadId = function(id) {
+    currentDownloadId = id;
+    console.log('Set currentDownloadId to:', id);
+};
+
+window.getCurrentDownloadId = function() {
+    return currentDownloadId;
+};
+
 // Initialize global progress widget
 function initGlobalProgress() {
     // Check if there's an active download in localStorage
@@ -39,7 +49,10 @@ function initGlobalProgress() {
 
 function showGlobalProgress(download) {
     const widget = document.getElementById('globalProgressWidget');
-    if (!widget) return;
+    if (!widget) {
+        console.error('Global progress widget not found');
+        return;
+    }
     
     const pct = parseFloat(download.progress) || 0;
     widget.classList.remove('hidden');
@@ -82,6 +95,8 @@ function showGlobalProgress(download) {
     if (statsContainer) {
         statsContainer.innerHTML = statsHtml || '<span class="global-stat">--</span>';
     }
+    
+    console.log('Global progress shown:', download);
 }
 
 function updateGlobalProgressStatus(status) {
@@ -138,15 +153,34 @@ async function resumeGlobalDownload() {
 async function stopGlobalDownload() {
     if (!currentDownloadId) return;
     
-    if (confirm('Are you sure you want to stop this download?')) {
-        try {
-            const response = await fetch(`/api/download/cancel/${currentDownloadId}`, { method: 'POST' });
-            if (response.ok) {
-                hideGlobalProgress();
-                showGlobalToast('Download Stopped', 'warning');
+    if (typeof dangerModal === 'function') {
+        dangerModal(
+            'Stop Download',
+            'Are you sure you want to stop this download?',
+            async () => {
+                try {
+                    const response = await fetch(`/api/download/cancel/${currentDownloadId}`, { method: 'POST' });
+                    if (response.ok) {
+                        hideGlobalProgress();
+                        showGlobalToast('Download Stopped', 'warning');
+                    }
+                } catch (error) {
+                    console.error('Error stopping global download:', error);
+                }
             }
-        } catch (error) {
-            console.error('Error stopping global download:', error);
+        );
+    } else {
+        // Fallback to confirm if modal not available
+        if (confirm('Are you sure you want to stop this download?')) {
+            try {
+                const response = await fetch(`/api/download/cancel/${currentDownloadId}`, { method: 'POST' });
+                if (response.ok) {
+                    hideGlobalProgress();
+                    showGlobalToast('Download Stopped', 'warning');
+                }
+            } catch (error) {
+                console.error('Error stopping global download:', error);
+            }
         }
     }
 }
@@ -158,6 +192,7 @@ function startGlobalProgressPolling() {
     
     globalProgressInterval = setInterval(async () => {
         if (!currentDownloadId) {
+            console.log('No currentDownloadId, stopping polling');
             hideGlobalProgress();
             return;
         }
@@ -165,6 +200,8 @@ function startGlobalProgressPolling() {
         try {
             const response = await fetch(`/api/progress/${currentDownloadId}`);
             const data = await response.json();
+            
+            console.log('Progress update:', data);
             
             // Update UI
             showGlobalProgress(data);
@@ -184,11 +221,14 @@ function startGlobalProgressPolling() {
             if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'error') {
                 if (data.status === 'completed') {
                     showGlobalToast(`Download Complete: ${data.title}`, 'success');
+                    // Dispatch custom event for other scripts to listen
+                    document.dispatchEvent(new CustomEvent('downloadCompleted', { detail: data }));
                 }
                 hideGlobalProgress();
             }
         } catch (error) {
             console.error('Error fetching global progress:', error);
+            // Don't hide on error, just log it
         }
     }, 1000);
 }

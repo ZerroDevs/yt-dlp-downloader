@@ -24,7 +24,7 @@ class Modal {
 
         const modal = document.createElement('div');
         modal.id = this.id;
-        modal.className = 'modal';
+        modal.className = 'modal hidden';
         modal.innerHTML = `
             <div class="modal-overlay"></div>
             <div class="modal-content modal-${this.size}">
@@ -64,68 +64,81 @@ class Modal {
         const confirmBtn = this.element.querySelector('[data-action="confirm"]');
         const cancelBtn = this.element.querySelector('[data-action="cancel"]');
 
-        let callbackExecuted = false;
+        this._callbackExecuted = false;
 
         // Close on overlay click (treat as cancel)
         overlay.addEventListener('click', (e) => {
-            if (callbackExecuted) return;
-            callbackExecuted = true;
             e.preventDefault();
             e.stopPropagation();
-            if (this.onCancel) this.onCancel();
-            this.close();
+            this._handleCancel();
         });
 
         // Close on X button (treat as cancel)
         closeBtn.addEventListener('click', (e) => {
-            if (callbackExecuted) return;
-            callbackExecuted = true;
             e.preventDefault();
             e.stopPropagation();
-            if (this.onCancel) this.onCancel();
-            this.close();
+            this._handleCancel();
         });
 
         // Confirm button
         if (confirmBtn) {
             confirmBtn.addEventListener('click', (e) => {
-                if (callbackExecuted) return;
-                callbackExecuted = true;
                 e.preventDefault();
                 e.stopPropagation();
-                if (this.onConfirm) {
-                    this.onConfirm();
-                }
-                this.close();
+                this._handleConfirm();
             });
         }
 
         // Cancel button
         if (cancelBtn) {
             cancelBtn.addEventListener('click', (e) => {
-                if (callbackExecuted) return;
-                callbackExecuted = true;
                 e.preventDefault();
                 e.stopPropagation();
-                if (this.onCancel) {
-                    this.onCancel();
-                }
-                this.close();
+                this._handleCancel();
             });
         }
 
         // Close on Escape key (treat as cancel)
         this.escapeHandler = (e) => {
             if (e.key === 'Escape') {
-                if (callbackExecuted) return;
-                callbackExecuted = true;
                 e.preventDefault();
                 e.stopPropagation();
-                if (this.onCancel) this.onCancel();
-                this.close();
+                this._handleCancel();
             }
         };
         document.addEventListener('keydown', this.escapeHandler);
+    }
+
+    _handleConfirm() {
+        if (this._callbackExecuted) return;
+        this._callbackExecuted = true;
+        if (this.onConfirm) {
+            const result = this.onConfirm();
+            // If callback returns a promise, wait for it before destroying
+            if (result instanceof Promise) {
+                result.finally(() => this.destroy());
+            } else {
+                this.destroy();
+            }
+        } else {
+            this.destroy();
+        }
+    }
+
+    _handleCancel() {
+        if (this._callbackExecuted) return;
+        this._callbackExecuted = true;
+        if (this.onCancel) {
+            const result = this.onCancel();
+            // If callback returns a promise, wait for it before destroying
+            if (result instanceof Promise) {
+                result.finally(() => this.destroy());
+            } else {
+                this.destroy();
+            }
+        } else {
+            this.destroy();
+        }
     }
 
     show() {
@@ -141,8 +154,7 @@ class Modal {
             this.element.classList.add('hidden');
         }
         document.removeEventListener('keydown', this.escapeHandler);
-        // Only call onCancel if modal was cancelled, not on normal close
-        // This prevents double execution when confirm button is clicked
+        this._callbackExecuted = true;
         return this;
     }
 
@@ -194,11 +206,17 @@ function confirmModal(title, content, onConfirm, onCancel = null) {
 
 // Danger confirm modal (red confirm button)
 function dangerModal(title, content, onConfirm, onCancel = null) {
+    const modalId = 'danger-modal-' + Date.now();
     const modal = new Modal({
+        id: modalId,
         title: `⚠️ ${title}`,
         content,
-        onConfirm,
-        onCancel,
+        onConfirm: () => {
+            if (onConfirm) onConfirm();
+        },
+        onCancel: () => {
+            if (onCancel) onCancel();
+        },
         confirmText: 'Delete',
         cancelText: 'Cancel',
         danger: true
@@ -208,12 +226,14 @@ function dangerModal(title, content, onConfirm, onCancel = null) {
 }
 
 // Input modal (with input field)
-function inputModal(title, placeholder, onConfirm, defaultValue = '', inputType = 'text') {
+function inputModal(title, placeholder, onConfirm, defaultValue = '', inputType = 'text', onCancel = null) {
+    const modalId = 'input-modal-' + Date.now();
     const content = `
-        <input type="${inputType}" id="modalInput" class="url-input" style="width: 100%;" placeholder="${placeholder}" value="${defaultValue}">
+        <input type="${inputType}" id="modalInput" class="url-input" style="width: 100%; padding: 12px 16px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg); color: var(--text-primary); font-size: 14px; outline: none; transition: border-color 0.2s;" placeholder="${placeholder}" value="${defaultValue}">
     `;
     
     const modal = new Modal({
+        id: modalId,
         title,
         content,
         onConfirm: () => {
@@ -222,16 +242,24 @@ function inputModal(title, placeholder, onConfirm, defaultValue = '', inputType 
                 onConfirm(input.value);
             }
         },
-        onCancel: () => {
-            if (onCancel) onCancel();
-        }
+        onCancel: onCancel
     });
     modal.create().show();
     
-    // Focus input
+    // Focus input and select text
     setTimeout(() => {
         const input = document.getElementById('modalInput');
-        if (input) input.focus();
+        if (input && modal.element) {
+            input.focus();
+            input.select();
+            // Allow pressing Enter to confirm
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    modal._handleConfirm();
+                }
+            });
+        }
     }, 100);
     
     return modal;

@@ -206,11 +206,51 @@
                 </div>
             </div>
         </main>
+
+        <!-- Global Progress Widget -->
+        <div id="globalProgressWidget" class="global-progress-widget hidden">
+            <div class="global-progress-header">
+                <span class="global-progress-title" id="globalProgressTitle">Downloading...</span>
+                <button class="global-progress-close" id="globalProgressClose">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="global-progress-bar-container">
+                <div class="global-progress-fill" id="globalProgressFill" style="width: 0%"></div>
+            </div>
+            <div class="global-progress-stats">
+                <span id="globalProgressPercent">0%</span>
+                <div id="globalProgressStats" class="global-stats-container"></div>
+            </div>
+            <div class="global-progress-controls">
+                <button class="global-btn-control btn-pause" id="globalProgressPause" title="Pause">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="6" y="4" width="4" height="16"></rect>
+                        <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                </button>
+                <button class="global-btn-control btn-resume hidden" id="globalProgressResume" title="Resume">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </button>
+                <button class="global-btn-control btn-stop" id="globalProgressStop" title="Stop">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
     </div>
 
     <script src="/static/pwa.js"></script>
     <script src="/static/modal.js"></script>
     <script src="/static/sidebar.js"></script>
     <script src="/static/cloud.js"></script>
+    <script src="/static/global-progress.js"></script>
 </body>
 </html>
