@@ -898,15 +898,58 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Download panel toggle
     document.getElementById('toggleDownloadPanelBtn').addEventListener('click', () => {
-        const panel = document.getElementById('downloadPanel');
-        panel.classList.toggle('hidden');
+        document.getElementById('downloadPanel').classList.toggle('hidden');
     });
     
     // Close download panel
     document.getElementById('closeDownloadPanelBtn').addEventListener('click', () => {
-        const panel = document.getElementById('downloadPanel');
-        panel.classList.add('hidden');
+        document.getElementById('downloadPanel').classList.add('hidden');
     });
+    
+    // Close download panel when clicking outside
+    document.addEventListener('click', (e) => {
+        const downloadPanel = document.getElementById('downloadPanel');
+        const toggleBtn = document.getElementById('toggleDownloadPanelBtn');
+        
+        // Check if panel is visible and click is outside panel and toggle button
+        if (!downloadPanel.classList.contains('hidden') && 
+            !downloadPanel.contains(e.target) && 
+            !toggleBtn.contains(e.target)) {
+            downloadPanel.classList.add('hidden');
+        }
+    });
+    
+    // Download tab switching
+    document.querySelectorAll('.download-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs
+            document.querySelectorAll('.download-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.download-tab-content').forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            tab.classList.add('active');
+            const tabName = tab.dataset.tab;
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+            
+            // Save last used tab to localStorage
+            localStorage.setItem('lastDownloadTab', tabName);
+        });
+    });
+    
+    // Load saved tab on page load
+    const savedTab = localStorage.getItem('lastDownloadTab');
+    if (savedTab) {
+        const tabToActivate = document.querySelector(`.download-tab[data-tab="${savedTab}"]`);
+        if (tabToActivate) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.download-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.download-tab-content').forEach(c => c.classList.remove('active'));
+            
+            // Activate saved tab
+            tabToActivate.classList.add('active');
+            document.getElementById(`${savedTab}Tab`).classList.add('active');
+        }
+    }
     
     // Start download
     document.getElementById('startDownloadBtn').addEventListener('click', async () => {
@@ -921,7 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check if settings have player folder
         const savedSettings = localStorage.getItem('ytDownloaderSettings');
         if (!savedSettings) {
-            showError('Settings not found. Please configure player folder in settings.');
+            showError('Settings not found');
             return;
         }
         
@@ -1023,6 +1066,91 @@ document.addEventListener('DOMContentLoaded', () => {
                 </svg>
                 Start Download
             `;
+        }
+    });
+    
+    // Download Spotify
+    document.getElementById('downloadSpotifyBtn').addEventListener('click', async () => {
+        const url = document.getElementById('spotifyUrl').value.trim();
+        
+        if (!url) {
+            showError('Please enter a Spotify URL');
+            return;
+        }
+        
+        // Validate Spotify URL
+        if (!url.includes('spotify.com') && !url.startsWith('spotify:')) {
+            showError('Please enter a valid Spotify URL (e.g., https://open.spotify.com/track/...)');
+            return;
+        }
+        
+        // Check if it's an authorization URL (user mistake)
+        if (url.includes('accounts.spotify.com/authorize')) {
+            showError('This is an authorization URL. Please paste a Spotify track, playlist, or album URL instead.');
+            return;
+        }
+        
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (!savedSettings) {
+            showError('Settings not found');
+            return;
+        }
+        
+        const settings = JSON.parse(savedSettings);
+        const playerFolder = settings.playerFolder;
+        
+        if (!playerFolder) {
+            showError('Player folder not configured. Please set it in settings.');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/spotify/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    url: url,
+                    output_dir: playerFolder
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                showNotification(data.message);
+                document.getElementById('spotifyUrl').value = '';
+                document.getElementById('downloadPanel').classList.add('hidden');
+                
+                // Integrate with global progress widget
+                if (data.download_id) {
+                    const downloadInfo = {
+                        id: data.download_id,
+                        status: 'downloading',
+                        title: 'Spotify Download',
+                        progress: 0,
+                        speed: '',
+                        size: '',
+                        eta: 'Unknown'
+                    };
+                    localStorage.setItem('currentDownload', JSON.stringify(downloadInfo));
+                    
+                    if (typeof window.setCurrentDownloadId === 'function') {
+                        window.setCurrentDownloadId(data.download_id);
+                    }
+                    
+                    if (typeof showGlobalProgress === 'function') {
+                        showGlobalProgress(downloadInfo);
+                    }
+                    
+                    if (typeof startGlobalProgressPolling === 'function') {
+                        startGlobalProgressPolling();
+                    }
+                }
+            } else {
+                showError(data.message);
+            }
+        } catch (error) {
+            showError('Failed to download Spotify: ' + error.message);
         }
     });
     

@@ -3196,6 +3196,32 @@ body {
     color: var(--text-muted);
 }
 
+.spotify-status {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    display: none;
+}
+
+.spotify-status.success {
+    display: block;
+    background: #10b981;
+    color: white;
+}
+
+.spotify-status.error {
+    display: block;
+    background: #ef4444;
+    color: white;
+}
+
+.spotify-status.info {
+    display: block;
+    background: #3b82f6;
+    color: white;
+}
+
 .setting-input,
 .setting-select {
     width: 100%;

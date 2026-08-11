@@ -97,6 +97,8 @@ function displayHistory(history) {
             platformBadge = '<span class="platform-badge platform-tiktok">🟣 TikTok</span>';
         } else if (platform === 'Instagram') {
             platformBadge = '<span class="platform-badge platform-instagram">🟠 Instagram</span>';
+        } else if (platform === 'YouTube (from Spotify)') {
+            platformBadge = '<span class="platform-badge platform-youtube">🟢⚪ YouTube (from Spotify)</span>';
         } else {
             platformBadge = '<span class="platform-badge platform-unsupported">🔴 Unknown</span>';
         }

@@ -381,4 +381,92 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeAttribute('data-theme');
         }
     });
+    
+    // Spotify settings
+    loadSpotifyCredentials();
+    document.getElementById('saveSpotifySettings').addEventListener('click', saveSpotifyCredentials);
+    document.getElementById('testSpotifyConnection').addEventListener('click', testSpotifyConnection);
 });
+
+// ────────────────────────────────────────────────────────────
+//  Spotify Settings
+// ────────────────────────────────────────────────────────────
+async function loadSpotifyCredentials() {
+    try {
+        const response = await fetch('/api/spotify/credentials');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            if (data.client_id) {
+                document.getElementById('spotifyClientId').value = data.client_id;
+            }
+            if (data.redirect_uri) {
+                document.getElementById('spotifyRedirectUri').value = data.redirect_uri;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading Spotify credentials:', error);
+    }
+}
+
+async function saveSpotifyCredentials() {
+    const clientId = document.getElementById('spotifyClientId').value.trim();
+    const clientSecret = document.getElementById('spotifyClientSecret').value.trim();
+    const redirectUri = document.getElementById('spotifyRedirectUri').value.trim();
+    
+    if (!clientId || !clientSecret) {
+        showSpotifyStatus('error', 'Client ID and Client Secret are required');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/spotify/credentials', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                client_id: clientId,
+                client_secret: clientSecret,
+                redirect_uri: redirectUri
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showSpotifyStatus('success', 'Spotify credentials saved successfully!');
+            document.getElementById('spotifyClientSecret').value = ''; // Clear secret for security
+        } else {
+            showSpotifyStatus('error', data.message || 'Failed to save credentials');
+        }
+    } catch (error) {
+        showSpotifyStatus('error', 'Failed to save credentials: ' + error.message);
+    }
+}
+
+async function testSpotifyConnection() {
+    showSpotifyStatus('info', 'Testing connection...');
+    
+    try {
+        const response = await fetch('/api/spotify/credentials');
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.has_credentials) {
+            showSpotifyStatus('success', 'Spotify credentials are configured! Try playing a track to test.');
+        } else {
+            showSpotifyStatus('error', 'No Spotify credentials found. Please configure them first.');
+        }
+    } catch (error) {
+        showSpotifyStatus('error', 'Failed to test connection: ' + error.message);
+    }
+}
+
+function showSpotifyStatus(type, message) {
+    const statusEl = document.getElementById('spotifyStatus');
+    statusEl.className = 'spotify-status ' + type;
+    statusEl.textContent = message;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        statusEl.className = 'spotify-status';
+    }, 5000);
+}

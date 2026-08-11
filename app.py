@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import boto3
 from botocore.client import Config
 import requests
+from spotify_service import get_spotify_service, reload_credentials
 
 # Load environment variables
 load_dotenv()
@@ -488,7 +489,7 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
         
         # Handle audio-only downloads
         if is_audio:
-            format_spec = "bestaudio/best"
+            format_spec = "bestaudio[ext=mp3]/bestaudio/best"
             ydl_opts = {
                 'format': format_spec,
                 'outtmpl': output_template,
@@ -501,7 +502,9 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '192',
-                }]
+                }],
+                'prefer_ffmpeg': True,
+                'final_ext': 'mp3'
             }
         else:
             # Combine chosen video format with best audio for standard Windows-playable MP4 container
@@ -2628,6 +2631,249 @@ def bulk_upload_to_cloud():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+# ────────────────────────────────────────────────────────────
+#  Spotify API Endpoints
+# ────────────────────────────────────────────────────────────
+
+@app.route('/api/spotify/play', methods=['POST'])
+def play_spotify():
+    """Play a Spotify track, playlist, or album"""
+    try:
+        data = request.json
+        url_or_uri = data.get('url_or_uri')
+        
+        if not url_or_uri:
+            return jsonify({'error': 'URL or URI is required'}), 400
+        
+        spotify_service = get_spotify_service()
+        result = spotify_service.play_spotify_playlist(url_or_uri)
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error playing Spotify: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/spotify/download', methods=['POST'])
+def download_spotify():
+    """Download a Spotify playlist or track using spotDL"""
+    try:
+        data = request.json
+        url = data.get('url')
+        output_dir = data.get('output_dir')
+        
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        if not output_dir:
+            return jsonify({'error': 'Output directory is required'}), 400
+        
+        # Validate Spotify URL
+        if not ('spotify.com' in url or url.startswith('spotify:')):
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid Spotify URL. Please use a Spotify track, playlist, or album URL (e.g., https://open.spotify.com/track/...)'
+            }), 400
+        
+        # Check if it's an authorization URL (user mistake)
+        if 'accounts.spotify.com/authorize' in url:
+            return jsonify({
+                'status': 'error',
+                'message': 'This is an authorization URL. Please paste a Spotify track, playlist, or album URL instead.'
+            }), 400
+        
+        spotify_service = get_spotify_service()
+        result = spotify_service.download_spotify_playlist(url, output_dir)
+        
+        # If successful, create a download ID for global progress tracking
+        if result.get('status') == 'success':
+            download_id = str(uuid.uuid4())
+            youtube_url_container = result.get('youtube_url', {'url': None})
+            
+            # Save to download_status for tracking
+            download_status[download_id] = {
+                'status': 'downloading',
+                'progress': 0,
+                'title': 'Spotify Download',
+                'speed': '',
+                'size': '',
+                'eta': 'Unknown',
+                'url': url,
+                'youtube_url': youtube_url_container,
+                'output_dir': output_dir
+            }
+            
+            # Start a background thread to monitor the process and handle metadata
+            def monitor_spotify_download():
+                import time
+                process_id = result.get('process_id')
+                youtube_url = None
+                
+                if process_id:
+                    # Monitor the process
+                    import psutil
+                    try:
+                        process = psutil.Process(process_id)
+                        while process.is_running():
+                            time.sleep(1)
+                            # Check if YouTube URL was found
+                            if youtube_url_container['url'] and youtube_url is None:
+                                youtube_url = youtube_url_container['url']
+                                print(f"Spotify download found YouTube URL: {youtube_url}")
+                                # Fetch metadata using yt-dlp
+                                try:
+                                    ydl_opts = {'quiet': True, 'no_warnings': True}
+                                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                        info = ydl.extract_info(youtube_url, download=False)
+                                        
+                                        # Update download status with metadata
+                                        if download_id in download_status:
+                                            download_status[download_id]['title'] = info.get('title', 'Spotify Download')
+                                            download_status[download_id]['thumbnail'] = info.get('thumbnail', '')
+                                            download_status[download_id]['uploader'] = info.get('uploader', 'Unknown')
+                                            download_status[download_id]['duration'] = format_duration(info.get('duration', 0))
+                                            
+                                            # Download thumbnail
+                                            thumbnail = info.get('thumbnail', '')
+                                            if thumbnail:
+                                                try:
+                                                    import requests
+                                                    response = requests.get(thumbnail, timeout=10)
+                                                    if response.status_code == 200:
+                                                        title = info.get('title', 'Unknown')
+                                                        sanitized_title = sanitize_filename(title)
+                                                        thumbnail_filename = f"{sanitized_title}.jpg"
+                                                        thumbnail_path = os.path.join(output_dir, thumbnail_filename)
+                                                        with open(thumbnail_path, 'wb') as f:
+                                                            f.write(response.content)
+                                                        print(f"Saved Spotify thumbnail to: {thumbnail_path}")
+                                                        download_status[download_id]['thumbnail_filename'] = thumbnail_filename
+                                                        download_status[download_id]['sanitized_title'] = sanitized_title
+                                                except Exception as e:
+                                                    print(f"Error downloading Spotify thumbnail: {e}")
+                                except Exception as e:
+                                    print(f"Error fetching Spotify metadata: {e}")
+                            
+                            # Update progress (mock since spotDL doesn't provide progress)
+                            if download_id in download_status:
+                                current_progress = download_status[download_id]['progress']
+                                if current_progress < 90:
+                                    download_status[download_id]['progress'] = current_progress + 1
+                    except:
+                        pass
+                
+                # Mark as complete and save metadata
+                if download_id in download_status:
+                    download_status[download_id]['status'] = 'completed'
+                    download_status[download_id]['progress'] = 100
+                    
+                    # Save to player_metadata.json
+                    try:
+                        sanitized_title = download_status[download_id].get('sanitized_title', sanitize_filename(download_status[download_id].get('title', 'Unknown')))
+                        metadata = {
+                            'title': download_status[download_id].get('title', 'Unknown'),
+                            'url': youtube_url or url,
+                            'platform': 'YouTube (from Spotify)',
+                            'thumbnail': download_status[download_id].get('thumbnail', ''),
+                            'thumbnail_filename': download_status[download_id].get('thumbnail_filename', ''),
+                            'uploader': download_status[download_id].get('uploader', 'Unknown'),
+                            'resolution': 'Unknown',
+                            'filename': f"{sanitized_title}.mp3",
+                            'duration': download_status[download_id].get('duration', '0:00'),
+                            'filesize': 0,
+                            'timestamp': datetime.now().isoformat(),
+                            'download_id': download_id,
+                            'spotify_url': url
+                        }
+                        
+                        # Save to player_metadata.json
+                        player_metadata = load_player_metadata()
+                        player_metadata.append(metadata)
+                        save_player_metadata(player_metadata)
+                        print(f"Saved Spotify metadata to player_metadata.json")
+                        
+                        # Save to download_history.json
+                        global download_history
+                        download_history.insert(0, metadata)
+                        save_history(download_history)
+                        print(f"Saved Spotify metadata to download_history.json")
+                        
+                    except Exception as e:
+                        print(f"Error saving Spotify metadata: {e}")
+            
+            import threading
+            monitor_thread = threading.Thread(target=monitor_spotify_download, daemon=True)
+            monitor_thread.start()
+            
+            result['download_id'] = download_id
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error downloading Spotify: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/spotify/credentials', methods=['POST'])
+def save_spotify_credentials():
+    """Save Spotify credentials to .env file"""
+    try:
+        data = request.json
+        client_id = data.get('client_id')
+        client_secret = data.get('client_secret')
+        redirect_uri = data.get('redirect_uri', 'http://localhost:8888/callback')
+        
+        if not client_id or not client_secret:
+            return jsonify({'error': 'Client ID and Client Secret are required'}), 400
+        
+        # Read existing .env file
+        env_path = '.env'
+        env_vars = {}
+        
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        env_vars[key] = value
+        
+        # Update Spotify credentials
+        env_vars['SPOTIFY_CLIENT_ID'] = client_id
+        env_vars['SPOTIFY_CLIENT_SECRET'] = client_secret
+        env_vars['SPOTIFY_REDIRECT_URI'] = redirect_uri
+        
+        # Write back to .env file
+        with open(env_path, 'w') as f:
+            for key, value in env_vars.items():
+                f.write(f"{key}={value}\n")
+        
+        # Reload credentials in service
+        reload_credentials()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Spotify credentials saved successfully'
+        })
+    except Exception as e:
+        print(f"Error saving Spotify credentials: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/spotify/credentials', methods=['GET'])
+def get_spotify_credentials():
+    """Get current Spotify credentials (without secret)"""
+    try:
+        load_dotenv()
+        client_id = os.getenv('SPOTIFY_CLIENT_ID')
+        redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:8888/callback')
+        
+        return jsonify({
+            'status': 'success',
+            'client_id': client_id,
+            'redirect_uri': redirect_uri,
+            'has_credentials': bool(client_id)
+        })
+    except Exception as e:
+        print(f"Error getting Spotify credentials: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     # Disable debug mode for better performance

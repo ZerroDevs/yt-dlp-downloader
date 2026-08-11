@@ -70,6 +70,15 @@
                         </svg>
                         Cloud
                     </button>
+                    <button class="settings-nav-item" data-tab="spotify">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M8 15s1.5 2 4 2 4-2 4-2"></path>
+                            <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                            <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                        </svg>
+                        Spotify
+                    </button>
                 </div>
 
                 <!-- Settings Content -->
@@ -254,6 +263,38 @@
                                     <input type="number" id="storageLimitGB" class="setting-input" min="1" max="10000" value="10">
                                     <small>Your B2 storage quota for tracking usage</small>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Spotify Tab -->
+                    <div class="settings-tab" id="spotify-tab">
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <h3>Spotify Integration</h3>
+                                <p class="settings-card-desc">Configure Spotify credentials for playback and downloads</p>
+                            </div>
+                            <div class="settings-card-body">
+                                <div class="setting-item">
+                                    <label for="spotifyClientId">Client ID</label>
+                                    <input type="text" id="spotifyClientId" class="setting-input" placeholder="Your Spotify Client ID">
+                                    <small>Get this from <a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Developer Dashboard</a></small>
+                                </div>
+                                <div class="setting-item">
+                                    <label for="spotifyClientSecret">Client Secret</label>
+                                    <input type="password" id="spotifyClientSecret" class="setting-input" placeholder="Your Spotify Client Secret">
+                                    <small>Keep this secret and never share it</small>
+                                </div>
+                                <div class="setting-item">
+                                    <label for="spotifyRedirectUri">Redirect URI</label>
+                                    <input type="text" id="spotifyRedirectUri" class="setting-input" value="http://127.0.0.1:8888/callback">
+                                    <small>Must match your Spotify app settings</small>
+                                </div>
+                                <div class="setting-item">
+                                    <button class="btn-primary" id="saveSpotifySettings">Save Spotify Credentials</button>
+                                    <button class="btn-secondary" id="testSpotifyConnection">Test Connection</button>
+                                </div>
+                                <div id="spotifyStatus" class="spotify-status"></div>
                             </div>
                         </div>
                     </div>

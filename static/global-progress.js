@@ -120,6 +120,12 @@ function hideGlobalProgress() {
         clearInterval(globalProgressInterval);
         globalProgressInterval = null;
     }
+    
+    // Dispatch download completed event for playlist refresh
+    const event = new CustomEvent('downloadCompleted', { 
+        detail: { type: 'spotify' }
+    });
+    window.dispatchEvent(event);
 }
 
 async function pauseGlobalDownload() {
