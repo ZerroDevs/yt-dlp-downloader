@@ -568,11 +568,6 @@ function playTrack(index) {
     currentTrackIndex = index;
     
     const savedSettings = localStorage.getItem('ytDownloaderSettings');
-    if (!savedSettings) {
-        showError('Settings not found');
-        return;
-    }
-    
     const settings = JSON.parse(savedSettings);
     const playerFolder = settings.playerFolder;
     
@@ -589,10 +584,8 @@ function playTrack(index) {
         updatePlayPauseButton();
         updatePlaylistActiveState();
     }).catch(error => {
-        console.error('Error playing audio:', error);
-        showError('Failed to play track');
-        isPlaying = false;
-        updatePlayPauseButton();
+        console.error('Error playing track:', error);
+        showError('Error playing audio file');
     });
 }
 
@@ -683,20 +676,20 @@ function toggleRepeat() {
 }
 
 function setVolume(value) {
-    audioPlayer.volume = value / 100;
+    // Boost volume by 1.5x to match Spotify's louder output
+    // Scale: 0-100 input becomes 0-1.5 output (capped at 1.0 for audio element)
+    const boostedVolume = Math.min((value / 100) * 1.5, 1.0);
+    audioPlayer.volume = boostedVolume;
+    
     document.getElementById('volumeFill').style.width = `${value}%`;
     document.getElementById('volumePercentage').textContent = `${value}%`;
     
-    // Update mute icon
-    const volumeIcon = document.getElementById('volumeIcon');
-    const muteIcon = document.getElementById('muteIcon');
-    
-    if (value === 0) {
-        volumeIcon.classList.add('hidden');
-        muteIcon.classList.remove('hidden');
-    } else {
-        volumeIcon.classList.remove('hidden');
-        muteIcon.classList.add('hidden');
+    // Save to localStorage
+    const savedSettings = localStorage.getItem('ytDownloaderSettings');
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        settings.volume = value;
+        localStorage.setItem('ytDownloaderSettings', JSON.stringify(settings));
     }
 }
 
