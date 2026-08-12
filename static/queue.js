@@ -522,14 +522,14 @@ function showGlobalToast(title, type = 'success', message = '') {
 }
 
 // Listen for download notifications from other pages
-let lastNotificationTimestamp = 0;
+let queueLastNotificationTimestamp = 0;
 window.addEventListener('storage', (e) => {
     if (e.key === 'downloadNotification') {
         const notification = JSON.parse(e.newValue);
         // Only show if it's from another tab (not the current one)
-        if (notification && notification.timestamp > lastNotificationTimestamp) {
+        if (notification && notification.timestamp > queueLastNotificationTimestamp) {
             handleDownloadNotification(notification);
-            lastNotificationTimestamp = notification.timestamp;
+            queueLastNotificationTimestamp = notification.timestamp;
         }
     }
 });

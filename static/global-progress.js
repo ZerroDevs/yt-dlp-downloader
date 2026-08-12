@@ -1,6 +1,13 @@
 // Global Progress Widget - Syncs across all pages
 let globalProgressInterval = null;
 let currentDownloadId = null;
+let lastNotificationTimestamp = 0;
+
+// Mobile detection
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           (window.innerWidth <= 768);
+}
 
 // Make currentDownloadId accessible and settable from other scripts
 window.setCurrentDownloadId = function(id) {
@@ -229,6 +236,31 @@ function startGlobalProgressPolling() {
                     showGlobalToast(`Download Complete: ${data.title}`, 'success');
                     // Dispatch custom event for other scripts to listen
                     document.dispatchEvent(new CustomEvent('downloadCompleted', { detail: data }));
+                    
+                    // If on mobile, automatically trigger file download to device
+                    if (isMobileDevice()) {
+                        try {
+                            const downloadResponse = await fetch(`/api/download-file/${currentDownloadId}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            
+                            if (downloadResponse.ok) {
+                                const blob = await downloadResponse.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = data.filename || 'download.mp4';
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                                showGlobalToast('Downloaded to device', 'success');
+                            }
+                        } catch (e) {
+                            console.error('Error downloading to mobile device:', e);
+                        }
+                    }
                 }
                 hideGlobalProgress();
             }
@@ -364,8 +396,6 @@ window.addEventListener('storage', (e) => {
         }
     }
 });
-
-let lastNotificationTimestamp = 0;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', initGlobalProgress);

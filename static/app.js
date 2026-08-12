@@ -1,10 +1,45 @@
 // ────────────────────────────────────────────────────────────
 //  State
 // ────────────────────────────────────────────────────────────
-let currentDownloadId = null;
-let progressInterval  = null;
-let floatingToastId   = null; // tracks the active downloading toast
+let appCurrentDownloadId = null;
+let appProgressInterval  = null;
+let appFloatingToastId   = null; // tracks the active downloading toast
 let isLoadingState = false; // prevent infinite loop during state loading
+
+// Mobile detection
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           (window.innerWidth <= 768);
+}
+
+// Platform Detection
+function detectPlatform(url) {
+    const urlLower = url.toLowerCase();
+    
+    // YouTube patterns
+    if (urlLower.includes('youtube.com/watch') || 
+        urlLower.includes('youtu.be/') || 
+        urlLower.includes('youtube.com/shorts/')) {
+        return { name: 'YouTube', color: '#00ff00', emoji: '🟢', supported: true };
+    }
+    
+    // TikTok patterns
+    if (urlLower.includes('tiktok.com/@') || 
+        urlLower.includes('vm.tiktok.com/') || 
+        urlLower.includes('tiktok.com/t/')) {
+        return { name: 'TikTok', color: '#a855f7', emoji: '🟣', supported: true };
+    }
+    
+    // Instagram patterns
+    if (urlLower.includes('instagram.com/reel') ||
+        urlLower.includes('instagram.com/p/') ||
+        urlLower.includes('instagram.com/tv/')) {
+        return { name: 'Instagram', color: '#ff6b00', emoji: '🟠', supported: true };
+    }
+    
+    // Unsupported
+    return { name: 'Unsupported', color: '#ff0000', emoji: '🔴', supported: false };
+}
 
 // ────────────────────────────────────────────────────────────
 //  Theme Management
@@ -33,7 +68,7 @@ function saveState() {
         const state = {
             currentTab: document.querySelector('.tab-btn.active')?.dataset.tab || 'downloader',
             urlInput: document.getElementById('urlInput').value,
-            currentDownloadId: currentDownloadId,
+            appCurrentDownloadId: appCurrentDownloadId,
             timestamp: Date.now()
         };
         localStorage.setItem('youtubeDownloaderState', JSON.stringify(state));
@@ -85,10 +120,10 @@ function loadState() {
             }
             
             // Restore download ID if recent (within 5 minutes)
-            if (state.currentDownloadId && state.timestamp) {
+            if (state.appCurrentDownloadId && state.timestamp) {
                 const age = Date.now() - state.timestamp;
                 if (age < 300000) { // 5 minutes
-                    currentDownloadId = state.currentDownloadId;
+                    appCurrentDownloadId = state.appCurrentDownloadId;
                 }
             }
         }
@@ -106,8 +141,7 @@ function saveState() {
     const state = {
         currentTab: document.querySelector('.tab-btn.active')?.dataset.tab || 'downloader',
         urlInput: document.getElementById('urlInput').value,
-        currentDownloadId: currentDownloadId,
-        downloadQueue: download_queue || []
+        appCurrentDownloadId: appCurrentDownloadId
     };
     localStorage.setItem('youtubeDownloaderState', JSON.stringify(state));
 }
@@ -129,13 +163,8 @@ function loadState() {
             }
             
             // Restore download ID
-            if (state.currentDownloadId) {
-                currentDownloadId = state.currentDownloadId;
-            }
-            
-            // Restore queue
-            if (state.downloadQueue && Array.isArray(state.downloadQueue)) {
-                // Queue will be restored via API calls
+            if (state.appCurrentDownloadId) {
+                appCurrentDownloadId = state.appCurrentDownloadId;
             }
         }
     } catch (error) {
@@ -172,7 +201,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') fetchVideoInfo();
     });
     document.getElementById('urlInput').addEventListener('paste', handlePaste);
-    document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+    
+    // Clear history button (only exists on history page)
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', clearHistory);
+    }
 
     // Quality preset buttons
     document.querySelectorAll('.preset-btn').forEach(btn => {
@@ -217,7 +251,7 @@ async function pasteFromClipboard() {
         // Auto-focus the input after pasting
         document.getElementById('urlInput').focus();
         // Auto-fetch if enabled
-        if (autoFetchEnabled) {
+        if (appAutoFetchEnabled) {
             fetchVideoInfo();
         }
     } catch (error) {
@@ -229,12 +263,12 @@ async function pasteFromClipboard() {
 // ────────────────────────────────────────────────────────────
 //  Auto-fetch on paste
 // ────────────────────────────────────────────────────────────
-let autoFetchEnabled = true;
+let appAutoFetchEnabled = true;
 
 function handlePaste(e) {
     // Add small delay to allow paste to complete
     setTimeout(() => {
-        if (autoFetchEnabled && document.getElementById('urlInput').value.trim()) {
+        if (appAutoFetchEnabled && document.getElementById('urlInput').value.trim()) {
             fetchVideoInfo();
         }
     }, 100);
@@ -243,7 +277,7 @@ function handlePaste(e) {
 // ────────────────────────────────────────────────────────────
 //  Quality Presets
 // ────────────────────────────────────────────────────────────
-let selectedPreset = null;
+let appSelectedPreset = null;
 
 function selectPreset(preset) {
     // Update UI
@@ -251,7 +285,7 @@ function selectPreset(preset) {
         btn.classList.toggle('active', btn.dataset.preset === preset);
     });
     
-    selectedPreset = preset;
+    appSelectedPreset = preset;
     
     // Auto-select appropriate format based on preset
     const formatCards = document.querySelectorAll('.format-card');
@@ -334,10 +368,10 @@ function showTemplateHelp() {
 //  Pause & Resume Downloads
 // ────────────────────────────────────────────────────────────
 async function pauseDownload() {
-    if (!currentDownloadId) return;
+    if (!appCurrentDownloadId) return;
     
     try {
-        const response = await fetch(`/api/download/pause/${currentDownloadId}`, { method: 'POST' });
+        const response = await fetch(`/api/download/pause/${appCurrentDownloadId}`, { method: 'POST' });
         if (response.ok) {
             document.getElementById('pauseBtn').classList.add('hidden');
             document.getElementById('resumeBtn').classList.remove('hidden');
@@ -351,10 +385,10 @@ async function pauseDownload() {
 }
 
 async function resumeDownload() {
-    if (!currentDownloadId) return;
+    if (!appCurrentDownloadId) return;
     
     try {
-        const response = await fetch(`/api/download/resume/${currentDownloadId}`, { method: 'POST' });
+        const response = await fetch(`/api/download/resume/${appCurrentDownloadId}`, { method: 'POST' });
         if (response.ok) {
             document.getElementById('resumeBtn').classList.add('hidden');
             document.getElementById('pauseBtn').classList.remove('hidden');
@@ -449,13 +483,114 @@ function displayFormats(formats) {
                 <span class="fps">${format.fps} fps</span>
                 <span class="codec">H.264</span>
             </div>
-            <button class="btn-download" data-format-id="${format.id}">Download</button>
+            <div class="format-actions">
+                <button class="btn-download" data-format-id="${format.id}">Download</button>
+                <button class="btn-download-player" data-format-id="${format.id}" title="Download to Player">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                    </svg>
+                    Player
+                </button>
+            </div>
         `;
         card.querySelector('.btn-download').addEventListener('click', () => startDownload(format.id));
+        card.querySelector('.btn-download-player').addEventListener('click', () => startDownloadToPlayer(format.id));
         formatList.appendChild(card);
     });
 
     document.getElementById('formatSelection').classList.remove('hidden');
+}
+
+// ────────────────────────────────────────────────────────────
+//  Download to Player
+// ────────────────────────────────────────────────────────────
+async function startDownloadToPlayer(formatId) {
+    const url = document.getElementById('urlInput').value.trim();
+    const title = document.getElementById('videoTitle').textContent;
+    const uploader = document.getElementById('videoUploader').textContent;
+    const thumbnail = document.querySelector('.video-thumbnail img')?.src || '';
+    
+    // Get player folder from settings
+    let playerFolder = '';
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            playerFolder = settings.playerFolder || '';
+        }
+    } catch(e) {}
+    
+    if (!playerFolder) {
+        showError('Please configure player folder in settings first');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                url, 
+                format_id: formatId, 
+                title, 
+                download_folder: playerFolder,
+                preset: 'audio', // Force audio-only for player
+                platform: detectPlatform(url),
+                uploader: uploader,
+                thumbnail: thumbnail,
+                save_metadata: true, // Save metadata JSON for player
+                is_mobile: isMobileDevice()
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to start download');
+
+        appCurrentDownloadId = data.download_id;
+
+        const formatSelection = document.getElementById('formatSelection');
+        const downloadProgress = document.getElementById('downloadProgress');
+        if (formatSelection) formatSelection.classList.add('hidden');
+        if (downloadProgress) downloadProgress.classList.remove('hidden');
+
+        showFloatingDownloadCard(appCurrentDownloadId, title, 'Audio');
+
+        // Save to localStorage for global progress widget
+        localStorage.setItem('currentDownload', JSON.stringify({
+            id: appCurrentDownloadId,
+            status: 'downloading',
+            title: title,
+            progress: 0,
+            speed: '0 KB/s'
+        }));
+
+        // Set the global currentDownloadId for global-progress.js
+        if (typeof window.setCurrentDownloadId === 'function') {
+            window.setCurrentDownloadId(appCurrentDownloadId);
+        }
+
+        // Manually trigger the global progress widget if it exists
+        if (typeof showGlobalProgress === 'function') {
+            showGlobalProgress({
+                id: appCurrentDownloadId,
+                status: 'downloading',
+                title: title,
+                progress: 0,
+                speed: '0 KB/s'
+            });
+        }
+
+        // Start polling if the function exists
+        if (typeof startGlobalProgressPolling === 'function') {
+            startGlobalProgressPolling();
+        }
+
+        if (appProgressInterval) clearInterval(appProgressInterval);
+        appProgressInterval = setInterval(checkProgress, 1000);
+
+    } catch (error) {
+        showError(error.message);
+    }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -467,31 +602,84 @@ async function startDownload(formatId) {
     const resolution     = document.querySelector(`.btn-download[data-format-id="${formatId}"]`)
                                .closest('.format-card').querySelector('.resolution').textContent;
     const customFilename = document.getElementById('filenameInput').value.trim();
+    
+    // Get download folder from settings
+    let downloadFolder = '';
+    try {
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            downloadFolder = settings.downloadFolder || '';
+        }
+    } catch (e) {
+        console.error('Error getting download folder:', e);
+    }
 
     try {
         const response = await fetch('/api/download', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, format_id: formatId, title, resolution, custom_filename: customFilename, preset: selectedPreset })
+            body: JSON.stringify({ 
+                url, 
+                format_id: formatId, 
+                title, 
+                resolution, 
+                custom_filename: customFilename, 
+                preset: appSelectedPreset,
+                download_folder: downloadFolder,
+                is_mobile: isMobileDevice()
+            })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to start download');
 
-        currentDownloadId = data.download_id;
+        appCurrentDownloadId = data.download_id;
+
+        // Save to localStorage for global progress widget
+        localStorage.setItem('currentDownload', JSON.stringify({
+            id: appCurrentDownloadId,
+            status: 'downloading',
+            title: title,
+            progress: 0,
+            speed: '0 KB/s'
+        }));
+
+        // Set the global currentDownloadId for global-progress.js
+        if (typeof window.setCurrentDownloadId === 'function') {
+            window.setCurrentDownloadId(appCurrentDownloadId);
+        }
+
+        // Manually trigger the global progress widget if it exists
+        if (typeof showGlobalProgress === 'function') {
+            showGlobalProgress({
+                id: appCurrentDownloadId,
+                status: 'downloading',
+                title: title,
+                progress: 0,
+                speed: '0 KB/s'
+            });
+        }
+
+        // Start polling if the function exists
+        if (typeof startGlobalProgressPolling === 'function') {
+            startGlobalProgressPolling();
+        }
 
         // Hide format panel, show in-page progress section
-        document.getElementById('formatSelection').classList.add('hidden');
-        document.getElementById('downloadProgress').classList.remove('hidden');
+        const formatSelection = document.getElementById('formatSelection');
+        const downloadProgress = document.getElementById('downloadProgress');
+        if (formatSelection) formatSelection.classList.add('hidden');
+        if (downloadProgress) downloadProgress.classList.remove('hidden');
 
         // Show Cobalt-style floating card (top-right)
-        showFloatingDownloadCard(currentDownloadId, title, resolution);
+        showFloatingDownloadCard(appCurrentDownloadId, title, resolution);
 
         // Switch to queue tab
         switchTab('queue');
 
         // Poll progress
-        if (progressInterval) clearInterval(progressInterval);
-        progressInterval = setInterval(checkProgress, 1000);
+        if (appProgressInterval) clearInterval(appProgressInterval);
+        appProgressInterval = setInterval(checkProgress, 1000);
 
     } catch (error) {
         showError(error.message);
@@ -548,7 +736,7 @@ function showFloatingDownloadCard(downloadId, title, resolution) {
         cancelCurrentDownload();
     });
 
-    floatingToastId = downloadId;
+    appFloatingToastId = downloadId;
 }
 
 function updateFloatingCard(data) {
@@ -587,6 +775,7 @@ function dismissFloatingCard(success = true, downloadId = null) {
                 <div class="toast-message" id="fdc-complete-title"></div>
                 <div class="toast-actions" style="margin-top:8px;">
                     ${downloadId ? `<button class="btn-toast-save" onclick="downloadFile('${downloadId}')">Save File</button>` : ''}
+                    ${downloadId ? `<button class="btn-toast-save" onclick="saveToPhotos('${downloadId}')">Save to Photos</button>` : ''}
                 </div>
             </div>
             <button class="toast-close" onclick="this.closest('.toast-card').remove()">&times;</button>
@@ -604,23 +793,23 @@ function dismissFloatingCard(success = true, downloadId = null) {
         setTimeout(() => card.remove(), 400);
     }
 
-    floatingToastId = null;
+    appFloatingToastId = null;
 }
 
 // ────────────────────────────────────────────────────────────
 //  Cancel download
 // ────────────────────────────────────────────────────────────
 async function cancelCurrentDownload() {
-    if (!currentDownloadId) return;
+    if (!appCurrentDownloadId) return;
 
-    const dlId = currentDownloadId;
+    const dlId = appCurrentDownloadId;
     try {
         await fetch(`/api/download/cancel/${dlId}`, { method: 'POST' });
     } catch (e) { /* server might not respond immediately */ }
 
-    clearInterval(progressInterval);
-    progressInterval = null;
-    currentDownloadId = null;
+    clearInterval(appProgressInterval);
+    appProgressInterval = null;
+    appCurrentDownloadId = null;
 
     document.getElementById('downloadProgress').classList.add('hidden');
     dismissFloatingCard(false);
@@ -632,14 +821,14 @@ async function cancelCurrentDownload() {
 //  Poll progress
 // ────────────────────────────────────────────────────────────
 async function checkProgress() {
-    if (!currentDownloadId) return;
+    if (!appCurrentDownloadId) return;
 
     try {
-        const response = await fetch(`/api/progress/${currentDownloadId}`);
+        const response = await fetch(`/api/progress/${appCurrentDownloadId}`);
         const data = await response.json();
 
         if (data.status === 'not_found') {
-            clearInterval(progressInterval);
+            clearInterval(appProgressInterval);
             showError('Download not found');
             return;
         }
@@ -649,14 +838,63 @@ async function checkProgress() {
         updateFloatingCard(data);
 
         if (data.status === 'completed') {
-            clearInterval(progressInterval);
-            const dlId = currentDownloadId;
-            currentDownloadId = null;
+            clearInterval(appProgressInterval);
+            const dlId = appCurrentDownloadId;
+            appCurrentDownloadId = null;
 
-            document.getElementById('downloadProgress').classList.add('hidden');
+            const downloadProgress = document.getElementById('downloadProgress');
+            if (downloadProgress) downloadProgress.classList.add('hidden');
             dismissFloatingCard(true, dlId);
             switchTab('history');
             loadHistory();
+
+            // If on mobile, automatically trigger file download to device
+            if (isMobileDevice()) {
+                try {
+                    const downloadResponse = await fetch(`/api/download-file/${dlId}`, {
+                        method: 'GET'
+                    });
+                    
+                    if (downloadResponse.ok) {
+                        const blob = await downloadResponse.blob();
+                        
+                        // Try Web Share API for iOS (saves to Photos/Gallery)
+                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], data.filename || 'video.mp4', { type: blob.type })] })) {
+                            const file = new File([blob], data.filename || 'video.mp4', { type: blob.type });
+                            try {
+                                await navigator.share({
+                                    files: [file],
+                                    title: data.title || 'Downloaded Video'
+                                });
+                                console.log('Shared successfully to Photos/Gallery');
+                            } catch (shareError) {
+                                console.log('Share cancelled or failed, falling back to download:', shareError);
+                                // Fallback to regular download
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = data.filename || 'download.mp4';
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                            }
+                        } else {
+                            // Fallback to regular download for non-iOS or unsupported browsers
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = data.filename || 'download.mp4';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error downloading to mobile device:', e);
+                }
+            }
 
             // Browser push notification
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -664,15 +902,16 @@ async function checkProgress() {
             }
 
         } else if (data.status === 'cancelled') {
-            clearInterval(progressInterval);
-            currentDownloadId = null;
-            document.getElementById('downloadProgress').classList.add('hidden');
+            clearInterval(appProgressInterval);
+            appCurrentDownloadId = null;
+            const downloadProgress = document.getElementById('downloadProgress');
+            if (downloadProgress) downloadProgress.classList.add('hidden');
             dismissFloatingCard(false);
             loadHistory();
 
         } else if (data.status === 'error') {
-            clearInterval(progressInterval);
-            currentDownloadId = null;
+            clearInterval(appProgressInterval);
+            appCurrentDownloadId = null;
             dismissFloatingCard(false);
             showError(data.error || 'Download failed');
             loadHistory();
@@ -733,6 +972,7 @@ function showToastNotification(title, message, downloadId, type = 'success') {
             ${isSuccess && downloadId ? `
             <div class="toast-actions" style="margin-top:8px;">
                 <button class="btn-toast-save" onclick="downloadFile('${downloadId}')">Save File</button>
+                <button class="btn-toast-save" onclick="saveToPhotos('${downloadId}')">Save to Photos</button>
             </div>` : ''}
         </div>
         <button class="toast-close" onclick="this.closest('.toast-card').remove()">&times;</button>
@@ -766,6 +1006,46 @@ function downloadFile(downloadId) {
         setTimeout(() => {
             document.body.removeChild(iframe);
         }, 1000);
+    }
+}
+
+async function saveToPhotos(downloadId) {
+    try {
+        const response = await fetch(`/api/download-file/${downloadId}`);
+        if (!response.ok) {
+            throw new Error('Failed to download file');
+        }
+        
+        const blob = await response.blob();
+        
+        // Try Web Share API for iOS (saves to Photos/Gallery)
+        if (navigator.share && navigator.canShare) {
+            const file = new File([blob], 'video.mp4', { type: blob.type });
+            
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Save to Photos'
+                });
+                return;
+            }
+        }
+        
+        // Fallback: show instructions
+        customModal({
+            title: 'Save to Photos',
+            content: 'To save this video to your Photos gallery:<br><br>1. Download the file using the Download button<br>2. Open the Files app<br>3. Find the downloaded video<br>4. Tap "Share" and select "Save Video"',
+            confirmText: 'OK'
+        });
+    } catch (error) {
+        console.error('Error saving to photos:', error);
+        if (error.name !== 'AbortError') {
+            customModal({
+                title: 'Error',
+                content: 'Failed to save to Photos. Please try downloading the file first and then manually save it from the Files app.',
+                confirmText: 'OK'
+            });
+        }
     }
 }
 
@@ -1001,10 +1281,12 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
 
     if (tabName === 'queue') {
-        document.getElementById('queueSection').classList.remove('hidden');
+        const queueSection = document.getElementById('queueSection');
+        if (queueSection) queueSection.classList.remove('hidden');
         updateQueue();
     } else if (tabName === 'history') {
-        document.getElementById('historySection').classList.remove('hidden');
+        const historySection = document.getElementById('historySection');
+        if (historySection) historySection.classList.remove('hidden');
         loadHistory();
     }
     
@@ -1029,6 +1311,9 @@ async function loadHistory() {
 
 function displayHistory(history) {
     const list = document.getElementById('historyList');
+    
+    // Only run if history list exists (history page), otherwise return silently
+    if (!list) return;
 
     if (!history || history.length === 0) {
         list.innerHTML = '<p class="empty-message">No download history</p>';
@@ -1053,6 +1338,14 @@ function displayHistory(history) {
                 </div>
             </div>
             <div class="history-actions">
+                <button class="btn-action btn-save-photos" data-id="${item.id}" data-action="save-photos" title="Save to Photos">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>Photos</span>
+                </button>
                 ${isCompleted
                     ? `
                         <button class="btn-action" data-id="${item.id}" data-action="download" title="Download">
@@ -1062,19 +1355,18 @@ function displayHistory(history) {
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
                         </button>
-                        <button class="btn-action" data-id="${item.id}" data-action="open" title="Open File">
+                        <button class="btn-action btn-desktop-only" data-id="${item.id}" data-action="open" title="Open File">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                             </svg>
                         </button>
-                        <button class="btn-action" data-id="${item.id}" data-action="folder" title="Open Folder">
+                        <button class="btn-action btn-desktop-only" data-id="${item.id}" data-action="folder" title="Open Folder">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 3"></polygon>
                             </svg>
                         </button>
                     `
-                    : `<div class="history-status ${item.status}">${statusIcon}</div>`
-                }
+                    : `<div class="history-status ${item.status}">${statusIcon}</div>`}
                 <button class="btn-delete-small" data-id="${item.id}" title="Delete video &amp; record">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -1098,6 +1390,9 @@ function displayHistory(history) {
                 switch(action) {
                     case 'download':
                         downloadFile(id);
+                        break;
+                    case 'save-photos':
+                        saveToPhotos(id);
                         break;
                     case 'open':
                         openFile(id);
@@ -1147,6 +1442,9 @@ async function updateQueue() {
 
 function displayQueue(queue) {
     const list = document.getElementById('queueList');
+    
+    // Only run if queue list exists (queue page), otherwise return silently
+    if (!list) return;
 
     if (!queue || queue.length === 0) {
         list.innerHTML = '<p class="empty-message">No downloads in queue</p>';
@@ -1188,10 +1486,10 @@ function displayQueue(queue) {
         cancelBtn.addEventListener('click', async () => {
             try {
                 await fetch(`/api/download/cancel/${item.id}`, { method: 'POST' });
-                if (item.id === currentDownloadId) {
-                    clearInterval(progressInterval);
-                    progressInterval  = null;
-                    currentDownloadId = null;
+                if (item.id === appCurrentDownloadId) {
+                    clearInterval(appProgressInterval);
+                    appProgressInterval  = null;
+                    appCurrentDownloadId = null;
                     document.getElementById('downloadProgress').classList.add('hidden');
                     dismissFloatingCard(false);
                 }

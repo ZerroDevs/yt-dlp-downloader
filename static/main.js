@@ -28,6 +28,14 @@ function applyTheme() {
 }
 
 // ────────────────────────────────────────────────────────────
+//  Mobile Detection
+// ────────────────────────────────────────────────────────────
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           (window.innerWidth <= 768);
+}
+
+// ────────────────────────────────────────────────────────────
 //  Platform Detection
 // ────────────────────────────────────────────────────────────
 function detectPlatform(url) {
@@ -350,7 +358,8 @@ async function startDownload(formatId) {
                 download_folder: customFolder,
                 filename_template: filenameTemplate,
                 platform: platform,
-                uploader: document.getElementById('videoUploader').textContent
+                uploader: document.getElementById('videoUploader').textContent,
+                is_mobile: isMobileDevice()
             })
         });
         const data = await response.json();
@@ -578,6 +587,31 @@ async function checkProgress() {
 
             document.getElementById('downloadProgress').classList.add('hidden');
             dismissFloatingCard(true, dlId);
+            
+            // If on mobile, automatically trigger file download to device
+            if (isMobileDevice()) {
+                try {
+                    const downloadResponse = await fetch(`/api/download-file/${dlId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (downloadResponse.ok) {
+                        const blob = await downloadResponse.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = data.filename || 'download.mp4';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        showDownloadNotification('Downloaded to device', 'completed', data.title);
+                    }
+                } catch (e) {
+                    console.error('Error downloading to mobile device:', e);
+                }
+            }
 
             // Show notification when download completes
             showDownloadNotification('Download Complete', 'completed', data.title || 'Your video is ready');

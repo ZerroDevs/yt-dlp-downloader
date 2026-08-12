@@ -209,6 +209,36 @@ function loadSettings() {
     }
 }
 
+// ────────────────────────────────────────────────────────────
+//  Mobile Detection
+// ────────────────────────────────────────────────────────────
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           (window.innerWidth <= 768);
+}
+
+// Hide folder browse button on mobile devices
+function handleMobileUI() {
+    if (isMobileDevice()) {
+        // Hide browse folder buttons
+        const browseBtns = document.querySelectorAll('.folder-input .btn-secondary');
+        browseBtns.forEach(btn => {
+            btn.style.display = 'none';
+        });
+        
+        // Set default download folder for mobile (downloads folder)
+        const savedSettings = localStorage.getItem('ytDownloaderSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            if (!settings.downloadFolder || settings.downloadFolder === '') {
+                // Set a default path for mobile (server-side will handle this)
+                settings.downloadFolder = 'downloads';
+                localStorage.setItem('ytDownloaderSettings', JSON.stringify(settings));
+            }
+        }
+    }
+}
+
 async function browseFolder() {
     try {
         const response = await fetch('/api/browse-folder', { method: 'POST' });
@@ -355,6 +385,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (browseBtn) {
         browseBtn.addEventListener('click', browseFolder);
     }
+    
+    // Handle mobile UI (hide browse buttons, set defaults)
+    handleMobileUI();
     
     // Browse player folder button
     const browsePlayerBtn = document.getElementById('browsePlayerFolder');

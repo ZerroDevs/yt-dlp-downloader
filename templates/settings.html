@@ -8,19 +8,33 @@
     <link rel="icon" type="image/webp" href="/static/logo.webp">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <meta name="theme-color" content="#6366f1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="YT Downloader">
     <link rel="stylesheet" href="/static/app.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Mobile menu toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+    
+    <!-- Sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
     <div class="app-container">
         <!-- Sidebar Navigation -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22.54 6.42a2 2 0 0 0-3.5 0l-9.6 9.6a2 2 0 0 0 0 3.5 0l9.6-9.6a2 2 0 0 0 0-3.5 0m-16.97 0l9.6 9.6a2 2 0 0 0 0 3.5 0l9.6-9.6a2 2 0 0 0 0-3.5 0"></path>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
                     <span>YT Downloader</span>
                 </div>
@@ -237,15 +251,15 @@
                                 </div>
                                 <div class="setting-item">
                                     <label for="b2KeyId">B2 Key ID</label>
-                                    <input type="password" id="b2KeyId" class="setting-input" placeholder="Application Key ID">
+                                    <input type="text" id="b2KeyId" class="setting-input" placeholder="Application Key ID" autocomplete="off">
                                 </div>
                                 <div class="setting-item">
                                     <label for="b2ApplicationKey">B2 Application Key</label>
-                                    <input type="password" id="b2ApplicationKey" class="setting-input" placeholder="Application Key">
+                                    <input type="text" id="b2ApplicationKey" class="setting-input" placeholder="Application Key" autocomplete="off">
                                 </div>
                                 <div class="setting-item">
                                     <label for="discordWebhookUrl">Discord Webhook URL</label>
-                                    <input type="password" id="discordWebhookUrl" class="setting-input" placeholder="https://discord.com/api/webhooks/...">
+                                    <input type="text" id="discordWebhookUrl" class="setting-input" placeholder="https://discord.com/api/webhooks/..." autocomplete="off">
                                 </div>
                                 <div class="setting-item">
                                     <label class="checkbox-label">
@@ -282,7 +296,7 @@
                                 </div>
                                 <div class="setting-item">
                                     <label for="spotifyClientSecret">Client Secret</label>
-                                    <input type="password" id="spotifyClientSecret" class="setting-input" placeholder="Your Spotify Client Secret">
+                                    <input type="text" id="spotifyClientSecret" class="setting-input" placeholder="Your Spotify Client Secret" autocomplete="off">
                                     <small>Keep this secret and never share it</small>
                                 </div>
                                 <div class="setting-item">

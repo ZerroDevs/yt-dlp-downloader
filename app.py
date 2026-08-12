@@ -244,6 +244,9 @@ def process_filename_template(template, title, quality, download_id, uploader=No
 
 def get_video_info(url):
     """Fetch video information including available formats"""
+    # Detect if URL is TikTok
+    is_tiktok = 'tiktok.com' in url.lower()
+    
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -254,9 +257,38 @@ def get_video_info(url):
         'extract_flat': False,  # Get full format info
     }
     
+    # Add TikTok-specific options to try to bypass restrictions
+    if is_tiktok:
+        ydl_opts.update({
+            'cookiefile': None,  # Don't use cookies
+            'extractor_args': {
+                'tiktok': {
+                    'api_hostname': 'api22-normal-c-useast1a.tiktokv.com',
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Cache-Control': 'max-age=0',
+            },
+            'nocheckcertificate': True,
+            'ignoreerrors': True,
+        })
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
+            
+            # Check if info extraction failed
+            if info is None:
+                return {'error': 'Failed to extract video information. The video might be private, region-restricted, or the URL is invalid.'}
             
             # ── Collect all candidate formats ──────────────────────────
             # Map actual heights to standard YouTube resolution labels
@@ -473,8 +505,30 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
         
         # Fetch video info to get duration
         video_duration = ''
+        is_tiktok = 'tiktok.com' in url.lower()
+        
         try:
-            with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
+            info_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'nocheckcertificate': True,
+            }
+            
+            # Add TikTok-specific options
+            if is_tiktok:
+                info_opts.update({
+                    'cookiefile': None,
+                    'extractor_args': {
+                        'tiktok': {
+                            'api_hostname': 'api22-normal-c-useast1a.tiktokv.com',
+                        }
+                    },
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    }
+                })
+            
+            with yt_dlp.YoutubeDL(info_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if info:
                     video_duration = format_duration(info.get('duration', 0))
@@ -529,6 +583,32 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
                 'logger': QuietLogger(),
             }
         
+        # Add TikTok-specific options to download as well
+        if is_tiktok:
+            ydl_opts.update({
+                'cookiefile': None,
+                'extractor_args': {
+                    'tiktok': {
+                        'api_hostname': 'api22-normal-c-useast1a.tiktokv.com',
+                    }
+                },
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Cache-Control': 'max-age=0',
+                },
+                'nocheckcertificate': True,
+                'ignoreerrors': True,
+                'extract_flat': 'in_playlist',  # Try flat extraction for TikTok
+            })
+        
         # Custom progress hook that respects pause/resume
         def progress_hook(d):
             # Check if paused
@@ -556,9 +636,30 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
                 'preferedformat': 'mp4',
             }]
         # Don't use post-processors if FFmpeg is not available
-            
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        
+        # Try download with retry for TikTok
+        max_retries = 3 if is_tiktok else 1
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+                break  # Success, exit retry loop
+            except Exception as e:
+                last_error = e
+                error_str = str(e)
+                if is_tiktok and attempt < max_retries - 1:
+                    print(f"TikTok download attempt {attempt + 1} failed, retrying... Error: {error_str}")
+                    import time
+                    time.sleep(2)  # Wait before retry
+                    # Try different API hostname on retry
+                    if attempt == 1:
+                        ydl_opts['extractor_args']['tiktok']['api_hostname'] = 'api16-normal-c-useast1a.tiktokv.com'
+                    elif attempt == 2:
+                        ydl_opts['extractor_args']['tiktok']['api_hostname'] = 'api19-normal-c-useast1a.tiktokv.com'
+                else:
+                    raise
             
         # Check if cancelled right after download finishes
         if download_status.get(download_id, {}).get('cancelled'):
@@ -1025,6 +1126,11 @@ def start_download():
     
     download_folder = data.get('download_folder')
     actual_resolution = data.get('actual_resolution')
+    is_mobile = data.get('is_mobile', False)
+    
+    # For mobile devices, use default downloads folder
+    if is_mobile and not download_folder:
+        download_folder = DOWNLOAD_FOLDER
     
     # Start download in background thread
     thread = threading.Thread(target=download_video, args=(url, format_id, download_id, title, resolution, actual_resolution, custom_filename, download_folder, thumbnail, is_audio, platform, uploader, save_metadata))
@@ -1169,7 +1275,7 @@ def delete_history_item(download_id):
         print(f"Error deleting history item: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/download-file/<download_id>', methods=['POST'])
+@app.route('/api/download-file/<download_id>', methods=['GET', 'POST'])
 def download_file(download_id):
     """API endpoint to download the completed file"""
     try:

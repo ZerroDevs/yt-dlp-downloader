@@ -13,6 +13,14 @@ let abRepeat = { a: null, b: null, enabled: false };
 let customPlaylists = [];
 
 // ────────────────────────────────────────────────────────────
+//  Mobile Detection
+// ────────────────────────────────────────────────────────────
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           (window.innerWidth <= 768);
+}
+
+// ────────────────────────────────────────────────────────────
 //  Utility Functions
 // ────────────────────────────────────────────────────────────
 function calculateSimilarity(str1, str2) {
@@ -1003,7 +1011,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     platform: platform,
                     uploader: uploader,
                     thumbnail: thumbnail,
-                    save_metadata: true
+                    save_metadata: true,
+                    is_mobile: isMobileDevice()
                 })
             });
             
