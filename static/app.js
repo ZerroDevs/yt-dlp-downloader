@@ -77,6 +77,62 @@ function saveState() {
     }
 }
 
+function saveVideoInfo(data) {
+    try {
+        const url = document.getElementById('urlInput').value.trim();
+        localStorage.setItem('youtubeDownloaderVideoInfo', JSON.stringify({
+            data: data,
+            url: url,
+            timestamp: Date.now()
+        }));
+    } catch (error) {
+        console.error('Error saving video info:', error);
+    }
+}
+
+function loadVideoInfo() {
+    try {
+        // Check both localStorage keys for compatibility
+        let saved = localStorage.getItem('youtubeDownloaderVideoInfo');
+        if (!saved) {
+            saved = localStorage.getItem('currentVideoInfo');
+        }
+        
+        if (saved) {
+            const state = JSON.parse(saved);
+            // If it's the new format with timestamp
+            if (state.data && state.timestamp) {
+                const age = Date.now() - state.timestamp;
+                // Restore video info if recent (within 5 minutes)
+                if (age < 300000) {
+                    displayVideoInfo(state.data);
+                    // Restore URL if saved
+                    if (state.url) {
+                        const urlInput = document.getElementById('urlInput');
+                        if (urlInput) {
+                            urlInput.value = state.url;
+                        }
+                    }
+                }
+            } else {
+                // Old format without timestamp, restore directly
+                displayVideoInfo(state);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading video info:', error);
+    }
+}
+
+function clearVideoInfo() {
+    try {
+        localStorage.removeItem('youtubeDownloaderVideoInfo');
+        localStorage.removeItem('currentVideoInfo');
+    } catch (error) {
+        console.error('Error clearing video info:', error);
+    }
+}
+
 function loadState() {
     if (isLoadingState) return;
     isLoadingState = true;
@@ -111,11 +167,14 @@ function loadState() {
                 }
             }
             
-            // Restore URL input
-            if (state.urlInput) {
-                const urlInput = document.getElementById('urlInput');
-                if (urlInput) {
-                    urlInput.value = state.urlInput;
+            // Restore URL input only if very recent (within 5 minutes)
+            if (state.urlInput && state.timestamp) {
+                const age = Date.now() - state.timestamp;
+                if (age < 300000) { // 5 minutes
+                    const urlInput = document.getElementById('urlInput');
+                    if (urlInput) {
+                        urlInput.value = state.urlInput;
+                    }
                 }
             }
             
@@ -126,6 +185,9 @@ function loadState() {
                     appCurrentDownloadId = state.appCurrentDownloadId;
                 }
             }
+            
+            // Restore video info if saved
+            loadVideoInfo();
         }
     } catch (error) {
         console.error('Error loading state:', error);
@@ -408,6 +470,7 @@ function dismissVideo() {
     hideAllSections();
     document.getElementById('urlInput').value = '';
     document.getElementById('urlInput').focus();
+    clearVideoInfo();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -416,6 +479,19 @@ function dismissVideo() {
 async function fetchVideoInfo() {
     const url = document.getElementById('urlInput').value.trim();
     if (!url) { showError('Please enter a YouTube URL'); return; }
+
+    // Clear old video info from localStorage when fetching a new video
+    clearVideoInfo();
+
+    // Clear old URL from localStorage when fetching a new video
+    try {
+        const saved = localStorage.getItem('youtubeDownloaderState');
+        if (saved) {
+            const state = JSON.parse(saved);
+            state.urlInput = '';
+            localStorage.setItem('youtubeDownloaderState', JSON.stringify(state));
+        }
+    } catch (e) {}
 
     hideAllSections();
     showLoading();
@@ -446,6 +522,9 @@ function displayVideoInfo(data) {
     document.getElementById('videoDuration').textContent = data.duration_human;
     document.getElementById('videoViews').textContent = formatViews(data.view_count);
     document.getElementById('videoInfo').classList.remove('hidden');
+
+    // Save video info to localStorage for persistence
+    saveVideoInfo(data);
 
     if (data.note) {
         const formatSection = document.getElementById('formatSelection');

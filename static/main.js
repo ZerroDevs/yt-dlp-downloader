@@ -100,7 +100,12 @@ function updatePlatformDisplay(url) {
 // ────────────────────────────────────────────────────────────
 function saveVideoInfo(data) {
     try {
-        localStorage.setItem('currentVideoInfo', JSON.stringify(data));
+        const url = document.getElementById('urlInput').value.trim();
+        localStorage.setItem('currentVideoInfo', JSON.stringify({
+            data: data,
+            url: url,
+            timestamp: Date.now()
+        }));
     } catch (error) {
         console.error('Error saving video info:', error);
     }
@@ -110,9 +115,25 @@ function restoreVideoInfo() {
     try {
         const saved = localStorage.getItem('currentVideoInfo');
         if (saved) {
-            const data = JSON.parse(saved);
-            displayVideoInfo(data);
-            // Don't remove it - keep it until user dismisses or starts new download
+            const state = JSON.parse(saved);
+            // If it's the new format with timestamp
+            if (state.data && state.timestamp) {
+                const age = Date.now() - state.timestamp;
+                // Restore video info if recent (within 5 minutes)
+                if (age < 300000) {
+                    displayVideoInfo(state.data);
+                    // Restore URL if saved
+                    if (state.url) {
+                        const urlInput = document.getElementById('urlInput');
+                        if (urlInput) {
+                            urlInput.value = state.url;
+                        }
+                    }
+                }
+            } else {
+                // Old format without timestamp, restore directly
+                displayVideoInfo(state);
+            }
         }
     } catch (error) {
         console.error('Error restoring video info:', error);
@@ -121,6 +142,7 @@ function restoreVideoInfo() {
 
 function clearVideoInfo() {
     localStorage.removeItem('currentVideoInfo');
+    localStorage.removeItem('youtubeDownloaderVideoInfo');
 }
 
 // ────────────────────────────────────────────────────────────
@@ -175,6 +197,9 @@ async function fetchVideoInfo() {
         showError('Only YouTube, TikTok, and Instagram are currently supported.');
         return;
     }
+    
+    // Clear old video info from both localStorage keys before fetching new video
+    clearVideoInfo();
     
     // Save URL to localStorage
     localStorage.setItem('currentUrl', url);

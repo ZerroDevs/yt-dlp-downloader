@@ -244,8 +244,9 @@ def process_filename_template(template, title, quality, download_id, uploader=No
 
 def get_video_info(url):
     """Fetch video information including available formats"""
-    # Detect if URL is TikTok
+    # Detect if URL is TikTok or YouTube
     is_tiktok = 'tiktok.com' in url.lower()
+    is_youtube = 'youtube.com' in url.lower() or 'youtu.be' in url.lower()
     
     ydl_opts = {
         'quiet': True,
@@ -257,10 +258,18 @@ def get_video_info(url):
         'extract_flat': False,  # Get full format info
     }
     
+    # Add cookie file support if cookies.txt exists
+    import os
+    cookies_path = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+    if os.path.exists(cookies_path):
+        ydl_opts['cookiefile'] = cookies_path
+    
+    # Add Node.js runtime for JavaScript challenges (dict format)
+    ydl_opts['js_runtimes'] = {'node': {}}
+    
     # Add TikTok-specific options to try to bypass restrictions
     if is_tiktok:
         ydl_opts.update({
-            'cookiefile': None,  # Don't use cookies
             'extractor_args': {
                 'tiktok': {
                     'api_hostname': 'api22-normal-c-useast1a.tiktokv.com',
@@ -284,11 +293,45 @@ def get_video_info(url):
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            try:
+                info = ydl.extract_info(url, download=False)
+            except yt_dlp.utils.DownloadError as e:
+                # Handle yt-dlp download errors (unavailable videos, etc.)
+                error_msg = str(e)
+                if 'not available' in error_msg.lower():
+                    return {'error': 'This video is not available. It may be private, region-restricted, deleted, or the URL is invalid.'}
+                elif 'private' in error_msg.lower():
+                    return {'error': 'This video is private. You need to be logged in to view it.'}
+                elif 'region' in error_msg.lower():
+                    return {'error': 'This video is region-restricted and not available in your location.'}
+                elif 'premium' in error_msg.lower():
+                    return {'error': 'This video is only available to YouTube Premium members.'}
+                elif 'subscriber' in error_msg.lower():
+                    return {'error': 'This video is only available to channel subscribers.'}
+                else:
+                    return {'error': f'Video unavailable: {error_msg}'}
+            except Exception as e:
+                return {'error': f'Failed to extract video info: {str(e)}'}
             
             # Check if info extraction failed
             if info is None:
                 return {'error': 'Failed to extract video information. The video might be private, region-restricted, or the URL is invalid.'}
+            
+            # Check if video is unavailable
+            if info.get('availability') == 'private':
+                return {'error': 'This video is private. You need to be logged in to view it.'}
+            if info.get('availability') == 'subscriber_only':
+                return {'error': 'This video is only available to channel subscribers.'}
+            if info.get('availability') == 'premium_only':
+                return {'error': 'This video is only available to YouTube Premium members.'}
+            if info.get('availability') == 'needs_auth':
+                return {'error': 'This video requires authentication to view.'}
+            if info.get('live_status') == 'is_upcoming':
+                return {'error': 'This video is a scheduled premiere and has not started yet.'}
+            if info.get('live_status') == 'was_live':
+                return {'error': 'This live stream has ended.'}
+            if info.get('live_status') == 'is_live':
+                return {'error': 'This is a live stream. Live streams cannot be downloaded.'}
             
             # ── Collect all candidate formats ──────────────────────────
             # Map actual heights to standard YouTube resolution labels
@@ -506,6 +549,7 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
         # Fetch video info to get duration
         video_duration = ''
         is_tiktok = 'tiktok.com' in url.lower()
+        is_youtube = 'youtube.com' in url.lower() or 'youtu.be' in url.lower()
         
         try:
             info_opts = {
@@ -514,10 +558,17 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
                 'nocheckcertificate': True,
             }
             
+            # Add cookie file support if cookies.txt exists
+            cookies_path = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+            if os.path.exists(cookies_path):
+                info_opts['cookiefile'] = cookies_path
+            
+            # Add Node.js runtime for JavaScript challenges
+            info_opts['js_runtimes'] = {'node': {}}
+            
             # Add TikTok-specific options
             if is_tiktok:
                 info_opts.update({
-                    'cookiefile': None,
                     'extractor_args': {
                         'tiktok': {
                             'api_hostname': 'api22-normal-c-useast1a.tiktokv.com',
@@ -583,10 +634,17 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
                 'logger': QuietLogger(),
             }
         
+        # Add cookie file support if cookies.txt exists
+        cookies_path = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+        if os.path.exists(cookies_path):
+            ydl_opts['cookiefile'] = cookies_path
+        
+        # Add Node.js runtime for JavaScript challenges
+        ydl_opts['js_runtimes'] = {'node': {}}
+        
         # Add TikTok-specific options to download as well
         if is_tiktok:
             ydl_opts.update({
-                'cookiefile': None,
                 'extractor_args': {
                     'tiktok': {
                         'api_hostname': 'api22-normal-c-useast1a.tiktokv.com',
