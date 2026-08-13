@@ -929,6 +929,11 @@ def settings():
     """Settings page"""
     return render_template('settings.html')
 
+@app.route('/other')
+def other():
+    """Other tools page"""
+    return render_template('other.html')
+
 @app.route('/player')
 def player():
     """Music player page"""
@@ -2360,6 +2365,463 @@ def save_cloud_settings():
         # In a production app, you'd encrypt and store these securely
         # For now, we'll just acknowledge receipt
         return jsonify({'success': True, 'message': 'Settings received'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ────────────────────────────────────────────────────────────
+#  Other Tools API Endpoints
+# ────────────────────────────────────────────────────────────
+# Simple in-memory URL shortener storage
+url_shortener_storage = {}
+
+@app.route('/api/shorten', methods=['POST'])
+def shorten_url():
+    """Generate a short URL for any given URL"""
+    try:
+        data = request.json
+        long_url = data.get('url', '').strip()
+        method = data.get('method', 'local')
+        
+        if not long_url:
+            return jsonify({'success': False, 'error': 'URL is required'}), 400
+        
+        # Validate URL format
+        if not (long_url.startswith('http://') or long_url.startswith('https://')):
+            return jsonify({'success': False, 'error': 'URL must start with http:// or https://'}), 400
+        
+        short_url = ''
+        
+        if method == 'local':
+            # Generate a short code (6 characters)
+            import random
+            import string
+            short_code = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+            
+            # Store the mapping
+            url_shortener_storage[short_code] = long_url
+            
+            # Generate short URL (using current host)
+            host = request.host_url.rstrip('/')
+            short_url = f"{host}/s/{short_code}"
+            
+        else:
+            # Use pyshorteners library for external services
+            try:
+                import pyshorteners
+                s = pyshorteners.Shortener()
+                
+                if method == 'tinyurl':
+                    short_url = s.tinyurl.short(long_url)
+                elif method == 'isgd':
+                    # Is.gd sometimes has rate limiting or database issues
+                    # Check if the response contains an error message
+                    short_url = s.isgd.short(long_url)
+                    if 'Error' in short_url or not short_url.startswith('http'):
+                        print(f"Is.gd returned error: {short_url}, falling back to local")
+                        raise Exception('Is.gd service unavailable')
+                elif method == 'dagd':
+                    short_url = s.dagd.short(long_url)
+                else:
+                    return jsonify({'success': False, 'error': 'Invalid shortening method'}), 400
+                    
+            except Exception as e:
+                # Fallback to local if external service fails
+                print(f"External shortener failed ({method}): {e}, using local fallback")
+                import random
+                import string
+                short_code = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+                url_shortener_storage[short_code] = long_url
+                host = request.host_url.rstrip('/')
+                short_url = f"{host}/s/{short_code}"
+                method = 'local (service unavailable)'
+        
+        return jsonify({
+            'success': True,
+            'short_url': short_url,
+            'method': method
+        })
+    except Exception as e:
+        print(f"Error shortening URL: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/s/<short_code>')
+def redirect_short_url(short_code):
+    """Redirect short URL to original URL"""
+    long_url = url_shortener_storage.get(short_code)
+    if long_url:
+        return redirect(long_url)
+    else:
+        return "Short URL not found", 404
+
+@app.route('/api/trim', methods=['POST'])
+def trim_video():
+    """Trim video to specified time range using FFmpeg"""
+    try:
+        if 'video' not in request.files:
+            return jsonify({'success': False, 'error': 'No video file provided'}), 400
+        
+        video_file = request.files['video']
+        start_time = float(request.form.get('start', 0))
+        end_time = float(request.form.get('end', 0))
+        
+        if start_time >= end_time:
+            return jsonify({'success': False, 'error': 'Start time must be less than end time'}), 400
+        
+        # Save uploaded video temporarily
+        import uuid
+        temp_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_input = os.path.join(temp_dir, f"input_{uuid.uuid4()}.mp4")
+        temp_output = os.path.join(temp_dir, f"trimmed_{uuid.uuid4()}.mp4")
+        
+        video_file.save(temp_input)
+        
+        # Use FFmpeg to trim video
+        duration = end_time - start_time
+        ffmpeg_cmd = [
+            FFMPEG_PATH or 'ffmpeg',
+            '-i', temp_input,
+            '-ss', str(start_time),
+            '-t', str(duration),
+            '-c', 'copy',
+            '-y',
+            temp_output
+        ]
+        
+        import subprocess
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        
+        # Clean up input file
+        try:
+            os.remove(temp_input)
+        except:
+            pass
+        
+        if result.returncode != 0:
+            return jsonify({'success': False, 'error': f'FFmpeg error: {result.stderr}'}), 500
+        
+        # Move to downloads folder
+        downloads_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER)
+        final_output = os.path.join(downloads_dir, f"trimmed_{uuid.uuid4()}.mp4")
+        os.rename(temp_output, final_output)
+        
+        return jsonify({
+            'success': True,
+            'output_path': final_output
+        })
+    except Exception as e:
+        print(f"Error trimming video: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/download-trimmed')
+def download_trimmed():
+    """Download trimmed video"""
+    try:
+        path = request.args.get('path', '')
+        if not path or not os.path.exists(path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        return send_file(path, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/create-gif', methods=['POST'])
+def create_gif():
+    """Convert video segment to GIF using FFmpeg"""
+    try:
+        if 'video' not in request.files:
+            return jsonify({'success': False, 'error': 'No video file provided'}), 400
+        
+        video_file = request.files['video']
+        start_time = float(request.form.get('start', 0))
+        duration = float(request.form.get('duration', 3))
+        width = int(request.form.get('width', 480))
+        fps = int(request.form.get('fps', 10))
+        
+        # Save uploaded video temporarily
+        import uuid
+        temp_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_input = os.path.join(temp_dir, f"input_{uuid.uuid4()}.mp4")
+        temp_output = os.path.join(temp_dir, f"output_{uuid.uuid4()}.gif")
+        
+        video_file.save(temp_input)
+        
+        # Use FFmpeg to create GIF
+        ffmpeg_cmd = [
+            FFMPEG_PATH or 'ffmpeg',
+            '-i', temp_input,
+            '-ss', str(start_time),
+            '-t', str(duration),
+            '-vf', f'scale={width}:-1:flags=lanczos,fps={fps}',
+            '-y',
+            temp_output
+        ]
+        
+        import subprocess
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        
+        # Clean up input file
+        try:
+            os.remove(temp_input)
+        except:
+            pass
+        
+        if result.returncode != 0:
+            return jsonify({'success': False, 'error': f'FFmpeg error: {result.stderr}'}), 500
+        
+        # Move to downloads folder
+        downloads_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER)
+        final_output = os.path.join(downloads_dir, f"gif_{uuid.uuid4()}.gif")
+        os.rename(temp_output, final_output)
+        
+        # Generate URL for preview
+        gif_url = f"/api/download-gif?path={final_output}"
+        
+        return jsonify({
+            'success': True,
+            'output_path': final_output,
+            'gif_url': gif_url
+        })
+    except Exception as e:
+        print(f"Error creating GIF: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/download-gif')
+def download_gif():
+    """Download or serve GIF file"""
+    try:
+        path = request.args.get('path', '')
+        if not path or not os.path.exists(path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        return send_file(path, mimetype='image/gif')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ────────────────────────────────────────────────────────────
+#  Image Tools API Endpoints
+# ────────────────────────────────────────────────────────────
+@app.route('/api/image/convert', methods=['POST'])
+def convert_image():
+    """Convert image to different format"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        format = request.form.get('format', 'png')
+        
+        # Save uploaded image temporarily
+        temp_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_input = os.path.join(temp_dir, f"input_{uuid.uuid4()}")
+        image_file.save(temp_input)
+        
+        # Open and convert image
+        from PIL import Image
+        img = Image.open(temp_input)
+        
+        # Convert RGBA to RGB for formats that don't support transparency
+        if format in ['jpg', 'jpeg', 'bmp'] and img.mode == 'RGBA':
+            img = img.convert('RGB')
+        
+        # Save in new format
+        output_path = os.path.join(temp_dir, f"converted_{uuid.uuid4()}.{format}")
+        img.save(output_path, format.upper())
+        
+        # Clean up input
+        try:
+            os.remove(temp_input)
+        except:
+            pass
+        
+        # Move to downloads folder
+        downloads_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER)
+        final_output = os.path.join(downloads_dir, f"converted_{uuid.uuid4()}.{format}")
+        os.rename(output_path, final_output)
+        
+        return jsonify({
+            'success': True,
+            'output_path': final_output
+        })
+    except Exception as e:
+        print(f"Error converting image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/image/resize', methods=['POST'])
+def resize_image():
+    """Resize image to custom dimensions"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        width = int(request.form.get('width', 800))
+        height = int(request.form.get('height', 600))
+        maintain_aspect = request.form.get('maintainAspect', 'true').lower() == 'true'
+        
+        # Save uploaded image temporarily
+        temp_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_input = os.path.join(temp_dir, f"input_{uuid.uuid4()}")
+        image_file.save(temp_input)
+        
+        # Open and resize image
+        from PIL import Image
+        img = Image.open(temp_input)
+        
+        if maintain_aspect:
+            img.thumbnail((width, height), Image.Resampling.LANCZOS)
+        else:
+            img = img.resize((width, height), Image.Resampling.LANCZOS)
+        
+        # Save resized image
+        output_path = os.path.join(temp_dir, f"resized_{uuid.uuid4()}.png")
+        img.save(output_path, 'PNG')
+        
+        # Clean up input
+        try:
+            os.remove(temp_input)
+        except:
+            pass
+        
+        # Move to downloads folder
+        downloads_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER)
+        final_output = os.path.join(downloads_dir, f"resized_{uuid.uuid4()}.png")
+        os.rename(output_path, final_output)
+        
+        return jsonify({
+            'success': True,
+            'output_path': final_output
+        })
+    except Exception as e:
+        print(f"Error resizing image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/image/compress', methods=['POST'])
+def compress_image():
+    """Compress image to reduce file size"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        quality = int(request.form.get('quality', 80))
+        
+        # Get original size
+        original_size = len(image_file.read())
+        image_file.seek(0)
+        
+        # Save uploaded image temporarily
+        temp_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_input = os.path.join(temp_dir, f"input_{uuid.uuid4()}")
+        image_file.save(temp_input)
+        
+        # Open and compress image
+        from PIL import Image
+        img = Image.open(temp_input)
+        
+        # Save compressed image
+        output_path = os.path.join(temp_dir, f"compressed_{uuid.uuid4()}.jpg")
+        img.save(output_path, 'JPEG', quality=quality, optimize=True)
+        
+        # Get compressed size
+        compressed_size = os.path.getsize(output_path)
+        saved_percent = round((1 - compressed_size / original_size) * 100, 2)
+        
+        # Clean up input
+        try:
+            os.remove(temp_input)
+        except:
+            pass
+        
+        # Move to downloads folder
+        downloads_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER)
+        final_output = os.path.join(downloads_dir, f"compressed_{uuid.uuid4()}.jpg")
+        os.rename(output_path, final_output)
+        
+        return jsonify({
+            'success': True,
+            'output_path': final_output,
+            'original_size': f"{original_size / 1024:.2f} KB",
+            'compressed_size': f"{compressed_size / 1024:.2f} KB",
+            'saved_percent': f"{saved_percent}%"
+        })
+    except Exception as e:
+        print(f"Error compressing image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/image/crop', methods=['POST'])
+def crop_image():
+    """Crop image to specific area"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        x = int(request.form.get('x', 0))
+        y = int(request.form.get('y', 0))
+        width = int(request.form.get('width', 200))
+        height = int(request.form.get('height', 200))
+        
+        # Save uploaded image temporarily
+        temp_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_input = os.path.join(temp_dir, f"input_{uuid.uuid4()}")
+        image_file.save(temp_input)
+        
+        # Open and crop image
+        from PIL import Image
+        img = Image.open(temp_input)
+        
+        # Validate crop area
+        img_width, img_height = img.size
+        if x + width > img_width or y + height > img_height:
+            return jsonify({'success': False, 'error': 'Crop area exceeds image dimensions'}), 400
+        
+        # Crop image
+        cropped = img.crop((x, y, x + width, y + height))
+        
+        # Save cropped image
+        output_path = os.path.join(temp_dir, f"cropped_{uuid.uuid4()}.png")
+        cropped.save(output_path, 'PNG')
+        
+        # Clean up input
+        try:
+            os.remove(temp_input)
+        except:
+            pass
+        
+        # Move to downloads folder
+        downloads_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER)
+        final_output = os.path.join(downloads_dir, f"cropped_{uuid.uuid4()}.png")
+        os.rename(output_path, final_output)
+        
+        return jsonify({
+            'success': True,
+            'output_path': final_output
+        })
+    except Exception as e:
+        print(f"Error cropping image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/download-image')
+def download_image():
+    """Download processed image"""
+    try:
+        path = request.args.get('path', '')
+        if not path or not os.path.exists(path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        return send_file(path, as_attachment=True)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

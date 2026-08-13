@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Other Tools - YouTube Downloader</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" type="image/webp" href="/static/logo.webp">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="YT Downloader">
+    <link rel="stylesheet" href="/static/app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Mobile menu toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+    
+    <!-- Sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>YT Downloader</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav"></nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <div class="header-title">
+                    <h1>Other Tools</h1>
+                    <p class="subtitle">Utility tools for your videos and links</p>
+                </div>
+            </div>
+
+            <div class="other-page">
+                <!-- Tab Navigation -->
+                <div class="other-tabs">
+                    <button class="other-tab-btn active" data-tab="shortener">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        URL Shortener
+                    </button>
+                    <button class="other-tab-btn" data-tab="qr">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <path d="M3 14h7v7H3z"></path>
+                        </svg>
+                        QR Generator
+                    </button>
+                    <button class="other-tab-btn" data-tab="img-convert">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        Image Converter
+                    </button>
+                    <button class="other-tab-btn" data-tab="img-resize">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 3h6v6"></path>
+                            <path d="M9 21H3v-6"></path>
+                            <path d="M21 3l-7 7"></path>
+                            <path d="M3 21l7-7"></path>
+                        </svg>
+                        Image Resizer
+                    </button>
+                    <button class="other-tab-btn" data-tab="img-compress">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 14 10 14 10 20"></polyline>
+                            <polyline points="20 10 14 10 14 4"></polyline>
+                            <line x1="14" y1="10" x2="21" y2="3"></line>
+                            <line x1="3" y1="21" x2="10" y2="14"></line>
+                        </svg>
+                        Image Compressor
+                    </button>
+                    <button class="other-tab-btn" data-tab="img-crop">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
+                            <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
+                        </svg>
+                        Image Cropper
+                    </button>
+                    <button class="other-tab-btn" data-tab="trimmer">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                            <line x1="7" y1="2" x2="7" y2="22"></line>
+                            <line x1="17" y1="2" x2="17" y2="22"></line>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <line x1="2" y1="7" x2="7" y2="7"></line>
+                            <line x1="2" y1="17" x2="7" y2="17"></line>
+                            <line x1="17" y1="17" x2="22" y2="17"></line>
+                            <line x1="17" y1="7" x2="22" y2="7"></line>
+                        </svg>
+                        Video Trimmer
+                    </button>
+                    <button class="other-tab-btn" data-tab="gif">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                            <circle cx="12" cy="10" r="3"></circle>
+                            <path d="M7 20.662V12a5 5 0 0 1 10 0v8.662"></path>
+                        </svg>
+                        GIF Maker
+                    </button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="other-tab-content">
+                    <!-- URL Shortener Tab -->
+                    <div class="other-tab-panel active" id="shortener-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>URL Shortener</h2>
+                                <p>Generate short links for any URL</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="longUrl">Long URL</label>
+                                    <input type="text" id="longUrl" class="tool-input" placeholder="Paste your long URL here...">
+                                </div>
+                                <div class="input-group">
+                                    <label>Shortening Method</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="shortenMethod" value="local" checked>
+                                            <span>Local (this website)</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="shortenMethod" value="tinyurl">
+                                            <span>TinyURL</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="shortenMethod" value="isgd">
+                                            <span>Is.gd</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="shortenMethod" value="dagd">
+                                            <span>Dagd</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <button id="shortenBtn" class="tool-btn">Shorten URL</button>
+                                <div id="shortenResult" class="result-container hidden">
+                                    <label>Shortened URL:</label>
+                                    <div class="result-row">
+                                        <input type="text" id="shortUrl" class="result-input" readonly>
+                                        <button id="copyShortBtn" class="copy-btn">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <div id="qrCodeContainer" class="qr-container hidden">
+                                        <label>QR Code:</label>
+                                        <img id="qrCode" class="qr-code" alt="QR Code">
+                                        <button id="downloadQrBtn" class="copy-btn">Download QR</button>
+                                    </div>
+                                </div>
+                                <div id="shortenHistory" class="history-container">
+                                    <div class="history-header">
+                                        <h3>Recent Shortened URLs</h3>
+                                        <button id="clearShortenHistory" class="clear-btn">Clear All</button>
+                                    </div>
+                                    <div id="shortenHistoryList" class="history-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Generator Tab -->
+                    <div class="other-tab-panel" id="qr-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>QR Code Generator</h2>
+                                <p>Generate QR codes for any text or URL</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="qrText">Text or URL</label>
+                                    <input type="text" id="qrText" class="tool-input" placeholder="Enter text or URL...">
+                                </div>
+                                <button id="generateQrBtn" class="tool-btn">Generate QR Code</button>
+                                <div id="qrResult" class="result-container hidden">
+                                    <label>QR Code:</label>
+                                    <img id="qrCodeStandalone" class="qr-code" alt="QR Code">
+                                    <button id="downloadQrStandaloneBtn" class="copy-btn">Download QR</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Converter Tab -->
+                    <div class="other-tab-panel" id="img-convert-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>Image Converter</h2>
+                                <p>Convert images between formats</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="convertImageFile">Image File</label>
+                                    <input type="file" id="convertImageFile" class="tool-input" accept="image/*">
+                                </div>
+                                <div class="input-group">
+                                    <label for="convertFormat">Output Format</label>
+                                    <select id="convertFormat" class="tool-input">
+                                        <option value="png">PNG</option>
+                                        <option value="jpg">JPG</option>
+                                        <option value="webp">WEBP</option>
+                                        <option value="gif">GIF</option>
+                                        <option value="bmp">BMP</option>
+                                    </select>
+                                </div>
+                                <button id="convertBtn" class="tool-btn">Convert Image</button>
+                                <div id="convertProgress" class="progress-container hidden">
+                                    <div class="progress-bar">
+                                        <div id="convertProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <span id="convertProgressText">Processing...</span>
+                                </div>
+                                <div id="convertResult" class="result-container hidden">
+                                    <label>Converted Image:</label>
+                                    <img id="convertPreview" class="image-preview" alt="Preview">
+                                    <div class="result-row">
+                                        <input type="text" id="convertPath" class="result-input" readonly>
+                                        <button id="downloadConvertBtn" class="copy-btn">Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Resizer Tab -->
+                    <div class="other-tab-panel" id="img-resize-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>Image Resizer</h2>
+                                <p>Resize images to custom dimensions</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="resizeImageFile">Image File</label>
+                                    <input type="file" id="resizeImageFile" class="tool-input" accept="image/*">
+                                </div>
+                                <div class="time-inputs">
+                                    <div class="input-group">
+                                        <label for="resizeWidth">Width (px)</label>
+                                        <input type="number" id="resizeWidth" class="tool-input" min="1" value="800">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="resizeHeight">Height (px)</label>
+                                        <input type="number" id="resizeHeight" class="tool-input" min="1" value="600">
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label>
+                                        <input type="checkbox" id="maintainAspect" checked>
+                                        Maintain aspect ratio
+                                    </label>
+                                </div>
+                                <button id="resizeBtn" class="tool-btn">Resize Image</button>
+                                <div id="resizeProgress" class="progress-container hidden">
+                                    <div class="progress-bar">
+                                        <div id="resizeProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <span id="resizeProgressText">Processing...</span>
+                                </div>
+                                <div id="resizeResult" class="result-container hidden">
+                                    <label>Resized Image:</label>
+                                    <img id="resizePreview" class="image-preview" alt="Preview">
+                                    <div class="result-row">
+                                        <input type="text" id="resizePath" class="result-input" readonly>
+                                        <button id="downloadResizeBtn" class="copy-btn">Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Compressor Tab -->
+                    <div class="other-tab-panel" id="img-compress-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>Image Compressor</h2>
+                                <p>Compress images to reduce file size</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="compressImageFile">Image File</label>
+                                    <input type="file" id="compressImageFile" class="tool-input" accept="image/*">
+                                </div>
+                                <div class="input-group">
+                                    <label for="compressQuality">Quality (1-100)</label>
+                                    <input type="range" id="compressQuality" class="tool-input" min="1" max="100" value="80">
+                                    <span id="compressQualityValue">80%</span>
+                                </div>
+                                <button id="compressBtn" class="tool-btn">Compress Image</button>
+                                <div id="compressProgress" class="progress-container hidden">
+                                    <div class="progress-bar">
+                                        <div id="compressProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <span id="compressProgressText">Processing...</span>
+                                </div>
+                                <div id="compressResult" class="result-container hidden">
+                                    <label>Compressed Image:</label>
+                                    <div class="compress-stats">
+                                        <span>Original: <span id="originalSize">-</span></span>
+                                        <span>Compressed: <span id="compressedSize">-</span></span>
+                                        <span>Saved: <span id="savedPercent">-</span></span>
+                                    </div>
+                                    <img id="compressPreview" class="image-preview" alt="Preview">
+                                    <div class="result-row">
+                                        <input type="text" id="compressPath" class="result-input" readonly>
+                                        <button id="downloadCompressBtn" class="copy-btn">Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Cropper Tab -->
+                    <div class="other-tab-panel" id="img-crop-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>Image Cropper</h2>
+                                <p>Crop images to specific areas</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="cropImageFile">Image File</label>
+                                    <input type="file" id="cropImageFile" class="tool-input" accept="image/*">
+                                </div>
+                                <div class="crop-preview-container">
+                                    <img id="cropPreviewOriginal" class="crop-preview" alt="Original">
+                                    <div id="cropOverlay" class="crop-overlay hidden">
+                                        <div class="crop-box"></div>
+                                    </div>
+                                </div>
+                                <div class="time-inputs">
+                                    <div class="input-group">
+                                        <label for="cropX">X Position</label>
+                                        <input type="number" id="cropX" class="tool-input" min="0" value="0">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="cropY">Y Position</label>
+                                        <input type="number" id="cropY" class="tool-input" min="0" value="0">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="cropWidth">Width</label>
+                                        <input type="number" id="cropWidth" class="tool-input" min="1" value="200">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="cropHeight">Height</label>
+                                        <input type="number" id="cropHeight" class="tool-input" min="1" value="200">
+                                    </div>
+                                </div>
+                                <button id="cropBtn" class="tool-btn">Crop Image</button>
+                                <div id="cropResult" class="result-container hidden">
+                                    <label>Cropped Image:</label>
+                                    <img id="cropPreviewFinal" class="image-preview" alt="Cropped">
+                                    <div class="result-row">
+                                        <input type="text" id="cropPath" class="result-input" readonly>
+                                        <button id="downloadCropBtn" class="copy-btn">Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Trimmer Tab -->
+                    <div class="other-tab-panel" id="trimmer-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>Video Trimmer</h2>
+                                <p>Trim videos to specific time ranges</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="trimVideoFile">Video File</label>
+                                    <input type="file" id="trimVideoFile" class="tool-input" accept="video/*">
+                                </div>
+                                <div class="time-inputs">
+                                    <div class="input-group">
+                                        <label for="trimStart">Start Time (seconds)</label>
+                                        <input type="number" id="trimStart" class="tool-input" min="0" value="0" step="0.1">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="trimEnd">End Time (seconds)</label>
+                                        <input type="number" id="trimEnd" class="tool-input" min="0" step="0.1">
+                                    </div>
+                                </div>
+                                <button id="trimBtn" class="tool-btn">Trim Video</button>
+                                <div id="trimProgress" class="progress-container hidden">
+                                    <div class="progress-bar">
+                                        <div id="trimProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <span id="trimProgressText">Processing...</span>
+                                </div>
+                                <div id="trimResult" class="result-container hidden">
+                                    <label>Trimmed Video:</label>
+                                    <div class="result-row">
+                                        <input type="text" id="trimmedVideoPath" class="result-input" readonly>
+                                        <button id="downloadTrimmedBtn" class="copy-btn">Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GIF Maker Tab -->
+                    <div class="other-tab-panel" id="gif-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>GIF Maker</h2>
+                                <p>Convert video clips to GIF</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="gifVideoFile">Video File</label>
+                                    <input type="file" id="gifVideoFile" class="tool-input" accept="video/*">
+                                </div>
+                                <div class="time-inputs">
+                                    <div class="input-group">
+                                        <label for="gifStart">Start Time (seconds)</label>
+                                        <input type="number" id="gifStart" class="tool-input" min="0" value="0" step="0.1">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="gifDuration">Duration (seconds)</label>
+                                        <input type="number" id="gifDuration" class="tool-input" min="0.1" value="3" step="0.1">
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label for="gifWidth">Width (px)</label>
+                                    <input type="number" id="gifWidth" class="tool-input" min="100" max="1000" value="480">
+                                </div>
+                                <div class="input-group">
+                                    <label for="gifFps">FPS</label>
+                                    <input type="number" id="gifFps" class="tool-input" min="1" max="30" value="10">
+                                </div>
+                                <button id="gifBtn" class="tool-btn">Create GIF</button>
+                                <div id="gifProgress" class="progress-container hidden">
+                                    <div class="progress-bar">
+                                        <div id="gifProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <span id="gifProgressText">Processing...</span>
+                                </div>
+                                <div id="gifResult" class="result-container hidden">
+                                    <label>GIF Preview:</label>
+                                    <img id="gifPreview" class="gif-preview" alt="GIF Preview">
+                                    <div class="result-row">
+                                        <input type="text" id="gifPath" class="result-input" readonly>
+                                        <button id="downloadGifBtn" class="copy-btn">Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Global Progress Widget -->
+    <div id="globalProgressWidget" class="global-progress-widget hidden">
+        <div class="global-progress-header">
+            <span class="global-progress-title" id="globalProgressTitle">Downloading...</span>
+            <button class="global-progress-close" id="globalProgressClose">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="global-progress-bar-container">
+            <div class="global-progress-fill" id="globalProgressFill" style="width: 0%"></div>
+        </div>
+        <div class="global-progress-stats">
+            <span id="globalProgressPercent">0%</span>
+            <div id="globalProgressStats" class="global-stats-container"></div>
+        </div>
+        <div class="global-progress-controls">
+            <button class="global-btn-control btn-pause" id="globalProgressPause" title="Pause">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+            </button>
+            <button class="global-btn-control btn-resume hidden" id="globalProgressResume" title="Resume">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+            </button>
+            <button class="global-btn-control btn-stop" id="globalProgressStop" title="Stop">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="/static/pwa.js"></script>
+    <script src="/static/modal.js"></script>
+    <script src="/static/sidebar.js"></script>
+    <script src="/static/global-progress.js"></script>
+    <script src="/static/other.js"></script>
+</body>
+</html>
