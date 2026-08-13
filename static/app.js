@@ -1008,11 +1008,13 @@ function updateProgressUI(data) {
     const pctEl   = document.getElementById('progressPercent');
     const speedEl = document.getElementById('downloadSpeed');
     const etaEl   = document.getElementById('downloadETA');
+    const sizeEl  = document.getElementById('downloadSize');
     const pct     = parseFloat(data.progress) || 0;
 
     if (bar)     bar.style.width = `${pct}%`;
     if (pctEl)   pctEl.textContent = `${pct.toFixed(1)}%`;
     if (speedEl) speedEl.textContent = `Speed: ${data.speed || '—'}`;
+    if (sizeEl)  sizeEl.textContent = `Size: ${data.size || 'Unknown'}`;
 
     if (etaEl) {
         if (data.queue_position > 1) {
@@ -1367,6 +1369,9 @@ function switchTab(tabName) {
         const historySection = document.getElementById('historySection');
         if (historySection) historySection.classList.remove('hidden');
         loadHistory();
+    } else if (tabName === 'downloader') {
+        // Restore video info when switching to downloader tab
+        loadVideoInfo();
     }
     
     // Only save state if not loading (prevents recursion)
