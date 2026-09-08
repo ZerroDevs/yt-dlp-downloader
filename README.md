@@ -1,8 +1,8 @@
-# 🚀 Video Downloader WebApp
+# 🚀 Video Downloader & Utility WebApp
 
 ![Banner](Logo.webp) <!-- Assuming there is a logo based on directory listing -->
 
-A modern, full-featured Python web application that allows you to download videos from multiple platforms (YouTube, TikTok, Instagram, Spotify) using `yt-dlp` and `ffmpeg` with a beautiful, responsive, and glass-morphism user interface.
+A modern, full-featured Python web application that not only allows you to download videos from multiple platforms (YouTube, TikTok, Instagram, Spotify) using `yt-dlp` and `ffmpeg`, but also includes a robust suite of utility tools for images, videos, and general productivity. All wrapped in a beautiful, responsive, and glass-morphism user interface.
 
 **Created by [ZerroDevs](https://github.com/ZerroDevs)**
 
@@ -10,14 +10,28 @@ A modern, full-featured Python web application that allows you to download video
 
 ## ✨ Features
 
-### 🎬 Core Functionality
+### 🎬 Video Downloading
 - **Multi-platform support** - Seamlessly download from YouTube, TikTok, Instagram, and more!
 - **Smart platform detection** - Automatically detects the video platform straight from the URL.
 - **Multiple quality options** - Select from various video resolutions and audio formats.
 - **Real-time progress tracking** - Live download progress with ETA and speed metrics.
-- **Queue system** - Download multiple videos simultaneously without freezing the app.
-- **Download history** - View, manage, and re-download past media from your history.
 - **Windows-compatible output** - Converts to H.264 MP4 format for maximum compatibility.
+
+### 🎵 Media Player & Management
+- **Integrated Music Player** - Listen to your downloaded audio or external files directly within the app.
+- **Queue System** - Queue multiple downloads and process them simultaneously without freezing the app.
+- **Download History** - View, manage, and re-download past media from your comprehensive history tab.
+
+### 🛠️ Utility Tools
+A suite of built-in tools to manage your media and productivity:
+- **URL Shortener** - Create short, manageable links quickly.
+- **QR Generator** - Generate QR codes for any URL or text.
+- **Image Converter** - Convert images between different formats seamlessly.
+- **Image Resizer** - Scale your images to custom dimensions.
+- **Image Compressor** - Reduce image file sizes without sacrificing quality.
+- **Image Cropper** - Crop images to focus on the perfect subject.
+- **Video Rotator** - Easily rotate incorrectly oriented videos.
+- **Video Trimmer** - Cut and trim videos to your desired length.
 
 ### ☁️ Cloud Integration
 - **Backblaze B2 storage** - Archive your downloads securely to cloud storage.
@@ -53,7 +67,7 @@ A modern, full-featured Python web application that allows you to download video
 pip install -r requirements.txt
 ```
 
-### FFmpeg Setup (Required for best quality & format conversion)
+### FFmpeg Setup (Required for video conversion & utilities)
 1. Download FFmpeg from [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 2. Extract the files to a folder (e.g., `C:\ffmpeg`)
 3. Add the FFmpeg `bin` folder to your system PATH:
