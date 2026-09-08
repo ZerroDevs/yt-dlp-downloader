@@ -5,6 +5,7 @@ import uuid
 import threading
 import json
 import re
+import subprocess
 from datetime import datetime
 from dotenv import load_dotenv
 import boto3
@@ -348,7 +349,7 @@ def get_video_info(url):
                 return min(STANDARD_RESOLUTIONS, key=lambda x: abs(x - height))
             
             formats = []
-            seen_resolutions = set()
+            seen_resolutions = {}
             
             # Debug: Print all available formats
             print(f"Total formats from yt-dlp: {len(info.get('formats', []))}")
@@ -358,10 +359,11 @@ def get_video_info(url):
                 vcodec = fmt.get('vcodec', 'none') or 'none'
                 acodec = fmt.get('acodec', 'none') or 'none'
                 ext = fmt.get('ext', 'mp4')
+                filesize = fmt.get('filesize') or fmt.get('filesize_approx') or 0
                 
                 # Debug: Print format details
                 if h and h >= 720:
-                    print(f"Format: height={h}, vcodec={vcodec}, acodec={acodec}, ext={ext}, format_id={fmt.get('format_id')}")
+                    print(f"Format: height={h}, vcodec={vcodec}, acodec={acodec}, ext={ext}, format_id={fmt.get('format_id')}, filesize={filesize}")
                 
                 if not h or h < 50:
                     continue
@@ -376,15 +378,30 @@ def get_video_info(url):
                 # Use actual height as resolution
                 resolution = f"{h}p"
                 
-                # Skip if we already have this resolution
-                if resolution in seen_resolutions:
-                    continue
-                    
-                seen_resolutions.add(resolution)
-                formats.append(fmt)
+                # Prefer formats with audio (for single-file downloads) or higher file sizes (better quality)
+                # Score the format based on quality indicators
+                score = 0
+                if acodec != 'none':
+                    score += 100  # Prefer formats with audio
+                if filesize > 0:
+                    score += filesize / (1024 * 1024)  # Add file size in MB to score
+                if vcodec in ['avc1', 'h264']:
+                    score += 50  # Prefer H.264 for compatibility
+                elif vcodec in ['vp9', 'av01']:
+                    score += 75  # Prefer VP9/AV1 for quality at same resolution
+                
+                # Keep the best format for each resolution
+                if resolution not in seen_resolutions or score > seen_resolutions[resolution]['score']:
+                    seen_resolutions[resolution] = {
+                        'fmt': fmt,
+                        'score': score
+                    }
+            
+            # Extract the formats from the dictionary
+            formats = [item['fmt'] for item in seen_resolutions.values()]
             
             print(f"Filtered formats: {len(formats)}")
-            print(f"Resolutions found: {sorted(seen_resolutions, key=lambda x: int(x.replace('p','')), reverse=True)}")
+            print(f"Resolutions found: {sorted(seen_resolutions.keys(), key=lambda x: int(x.replace('p','')), reverse=True)}")
             
             # Process formats for output
             processed_formats = []
@@ -615,14 +632,15 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
             # Combine chosen video format with best audio for standard Windows-playable MP4 container
             # Only use merging if FFmpeg is available
             if FFMPEG_PATH:
-                format_spec = f"{format_id}+bestaudio[ext=m4a]/bestaudio/{format_id}/best"
+                # Use the exact format_id selected by the user, then merge with best audio
+                # This ensures we get the exact quality the user selected
+                format_spec = f"{format_id}+bestaudio[ext=m4a]/bestaudio/{format_id}"
                 print(f"FFmpeg found at: {FFMPEG_PATH}, using format: {format_spec}")
             else:
                 # Fall back to single format if FFmpeg is not available
-                # Prefer formats that are Windows Media Player compatible (H.264/AAC in MP4)
-                # Windows Media Player supports: H.264 video, AAC audio in MP4 container
-                format_spec = f"{format_id}[vcodec^=avc1][acodec^=mp4a]/{format_id}[vcodec^=h264][acodec^=aac]/{format_id}[ext=mp4][acodec^=aac]/{format_id}[ext=mp4]/{format_id}/best[ext=mp4][vcodec^=avc1]/best[ext=mp4]/best"
-                print("FFmpeg not found, using H.264/AAC format for Windows Media Player compatibility")
+                # Use the exact format_id selected, prefer formats with audio
+                format_spec = f"{format_id}[acodec!=none]/{format_id}/best[ext=mp4][vcodec^=avc1]/best[ext=mp4]/best"
+                print("FFmpeg not found, using exact format with audio preference")
             
             ydl_opts = {
                 'format': format_spec,
@@ -665,6 +683,29 @@ def download_video(url, format_id, download_id, title, resolution, actual_resolu
                 'nocheckcertificate': True,
                 'ignoreerrors': True,
                 'extract_flat': 'in_playlist',  # Try flat extraction for TikTok
+            })
+        else:
+            # Add YouTube-specific options to bypass 403 errors
+            ydl_opts.update({
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': '*/*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://www.youtube.com/',
+                    'Origin': 'https://www.youtube.com',
+                    'Connection': 'keep-alive',
+                    'Sec-Fetch-Dest': 'empty',
+                    'Sec-Fetch-Mode': 'cors',
+                    'Sec-Fetch-Site': 'same-origin',
+                },
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'web'],
+                    }
+                },
+                'nocheckcertificate': True,
+                'ignoreerrors': True,
             })
         
         # Custom progress hook that respects pause/resume
@@ -2816,6 +2857,142 @@ def crop_image():
 @app.route('/api/download-image')
 def download_image():
     """Download processed image"""
+    try:
+        path = request.args.get('path', '')
+        if not path or not os.path.exists(path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        return send_file(path, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/video/rotate', methods=['POST'])
+def rotate_video():
+    """Rotate video to make it landscape with readable text"""
+    try:
+        if 'video' not in request.files:
+            return jsonify({'success': False, 'error': 'No video file provided'}), 400
+        
+        video_file = request.files['video']
+        rotation = request.form.get('rotation', 'auto')  # auto, left, right, 180
+        quality = request.form.get('quality', 'high')
+        
+        if not FFMPEG_PATH:
+            return jsonify({'success': False, 'error': 'FFmpeg is not available'}), 400
+        
+        # Save uploaded video temporarily
+        temp_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_input = os.path.join(temp_dir, f"input_{uuid.uuid4()}")
+        video_file.save(temp_input)
+        
+        # Get video dimensions to determine orientation
+        probe_cmd = [
+            FFMPEG_PATH,
+            '-i', temp_input,
+            '-hide_banner'
+        ]
+        probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
+        
+        # Parse video dimensions from FFmpeg output (FFmpeg outputs to stderr)
+        width, height = None, None
+        output = probe_result.stderr if probe_result.stderr else probe_result.stdout
+        for line in output.split('\n'):
+            if 'Stream' in line and 'Video' in line:
+                # Look for resolution pattern like "1920x1080"
+                import re
+                match = re.search(r'(\d+)x(\d+)', line)
+                if match:
+                    width = int(match.group(1))
+                    height = int(match.group(2))
+                    break
+        
+        if width and height:
+            print(f"Video dimensions: {width}x{height}")
+        else:
+            print("Could not detect video dimensions, defaulting to rotation")
+        
+        # Determine rotation based on video orientation and user selection
+        if rotation == 'auto':
+            # Auto-detect: Always rotate 90° clockwise to convert vertical to landscape
+            # This is the most common use case - fixing vertical phone videos
+            transpose = '1'  # 90° clockwise
+            print(f"Auto-detect: Rotating video 90° clockwise to convert to landscape")
+        else:
+            # Manual rotation
+            rotation_map = {
+                'left': '2',      # 90° counter-clockwise
+                'right': '1',     # 90° clockwise
+                '180': '3'        # 180° (with flip to keep text readable)
+            }
+            transpose = rotation_map.get(rotation, '1')
+        
+        # Set quality parameters
+        crf_value = {'high': '18', 'medium': '23', 'low': '28'}.get(quality, '18')
+        
+        # Output path
+        output_path = os.path.join(temp_dir, f"rotated_{uuid.uuid4()}.mp4")
+        
+        # FFmpeg command to rotate video
+        # For vertical to landscape: use transpose=1 (90° clockwise)
+        # This keeps text readable when rotating from vertical to horizontal
+        if transpose == '0':
+            # No rotation needed, just copy
+            cmd = [
+                FFMPEG_PATH,
+                '-i', temp_input,
+                '-c', 'copy',
+                '-y',
+                output_path
+            ]
+        else:
+            cmd = [
+                FFMPEG_PATH,
+                '-i', temp_input,
+                '-vf', f'transpose={transpose}',
+                '-c:v', 'libx264',
+                '-preset', 'slow',
+                '-crf', crf_value,
+                '-c:a', 'copy',
+                '-movflags', '+faststart',
+                '-y',
+                output_path
+            ]
+        
+        print(f"FFmpeg command: {' '.join(cmd)}")
+        
+        # Run FFmpeg command
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"FFmpeg error: {result.stderr}")
+            return jsonify({'success': False, 'error': 'Failed to rotate video'}), 500
+        
+        # Clean up input
+        try:
+            os.remove(temp_input)
+        except:
+            pass
+        
+        # Move to downloads folder
+        downloads_dir = os.path.join(os.getcwd(), DOWNLOAD_FOLDER)
+        final_output = os.path.join(downloads_dir, f"rotated_{uuid.uuid4()}.mp4")
+        os.rename(output_path, final_output)
+        
+        return jsonify({
+            'success': True,
+            'output_path': final_output
+        })
+    except Exception as e:
+        print(f"Error rotating video: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/download-video')
+def download_video_file():
+    """Download processed video"""
     try:
         path = request.args.get('path', '')
         if not path or not os.path.exists(path):

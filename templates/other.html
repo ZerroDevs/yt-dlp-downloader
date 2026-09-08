@@ -104,6 +104,13 @@
                         </svg>
                         Image Cropper
                     </button>
+                    <button class="other-tab-btn" data-tab="video-rotate">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                            <path d="M3 3v5h5"></path>
+                        </svg>
+                        Video Rotator
+                    </button>
                     <button class="other-tab-btn" data-tab="trimmer">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
@@ -386,6 +393,73 @@
                                     <div class="result-row">
                                         <input type="text" id="cropPath" class="result-input" readonly>
                                         <button id="downloadCropBtn" class="copy-btn">Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Rotator Tab -->
+                    <div class="other-tab-panel" id="video-rotate-panel">
+                        <div class="tool-container">
+                            <div class="tool-header">
+                                <h2>Video Rotator</h2>
+                                <p>Rotate videos left or right with high quality export</p>
+                            </div>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label for="rotateVideoFile">Video File</label>
+                                    <input type="file" id="rotateVideoFile" class="tool-input" accept="video/*">
+                                </div>
+                                <div id="rotatePreviewContainer" class="video-preview-container hidden">
+                                    <label>Preview:</label>
+                                    <div class="video-preview-wrapper">
+                                        <video id="rotateLivePreview" class="video-preview-live" controls></video>
+                                    </div>
+                                </div>
+                                <div class="rotate-controls">
+                                    <button id="rotateAutoBtn" class="tool-btn">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+                                        </svg>
+                                        Auto Fix (Vertical → Landscape)
+                                    </button>
+                                    <button id="rotateRightBtn" class="tool-btn">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                                            <path d="M21 3v5h-5"></path>
+                                        </svg>
+                                        Rotate Right (90°)
+                                    </button>
+                                    <button id="rotateLeftBtn" class="tool-btn">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                            <path d="M3 3v5h5"></path>
+                                        </svg>
+                                        Rotate Left (90°)
+                                    </button>
+                                </div>
+                                <div class="input-group">
+                                    <label for="rotateQuality">Output Quality</label>
+                                    <select id="rotateQuality" class="tool-input">
+                                        <option value="high">High (Original Quality)</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                                <button id="applyRotateBtn" class="tool-btn">Apply Rotation</button>
+                                <div id="rotateProgress" class="progress-container hidden">
+                                    <div class="progress-bar">
+                                        <div id="rotateProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <span id="rotateProgressText">Processing...</span>
+                                </div>
+                                <div id="rotateResult" class="result-container hidden">
+                                    <label>Rotated Video:</label>
+                                    <video id="rotatePreview" class="video-preview" controls></video>
+                                    <div class="result-row">
+                                        <input type="text" id="rotatePath" class="result-input" readonly>
+                                        <button id="downloadRotateBtn" class="copy-btn">Download</button>
                                     </div>
                                 </div>
                             </div>

@@ -7136,6 +7136,59 @@ select.tool-input:focus {
     border-color: var(--primary-color);
 }
 
+.rotate-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.rotate-controls button {
+    flex: 1;
+    min-width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.video-preview {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 2px solid var(--glass-border);
+}
+
+.video-preview-container {
+    margin-bottom: 16px;
+}
+
+.video-preview-container.hidden {
+    display: none;
+}
+
+.video-preview-live {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    border: 2px solid var(--glass-border);
+    transition: transform 0.3s ease;
+    display: block;
+    margin: 0 auto;
+}
+
+.video-preview-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    background: var(--shortcut-bg);
+    border-radius: 8px;
+    padding: 16px;
+    overflow: hidden;
+}
+
 .history-list {
     display: flex;
     flex-direction: column;

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupImageResizer();
     setupImageCompressor();
     setupImageCropper();
+    setupVideoRotator();
     setupVideoTrimmer();
     setupGifMaker();
 });
@@ -509,6 +510,131 @@ async function cropImage() {
 function downloadImage(pathId) {
     const path = document.getElementById(pathId).value;
     window.open(`/api/download-image?path=${path}`, '_blank');
+    showToast('Download started!', 'success');
+}
+
+// ────────────────────────────────────────────────────────────
+//  Video Rotator
+// ────────────────────────────────────────────────────────────
+let currentRotation = 'auto';
+
+function setupVideoRotator() {
+    const rotateAutoBtn = document.getElementById('rotateAutoBtn');
+    const rotateLeftBtn = document.getElementById('rotateLeftBtn');
+    const rotateRightBtn = document.getElementById('rotateRightBtn');
+    const applyRotateBtn = document.getElementById('applyRotateBtn');
+    const downloadBtn = document.getElementById('downloadRotateBtn');
+    const fileInput = document.getElementById('rotateVideoFile');
+    const livePreview = document.getElementById('rotateLivePreview');
+    const previewContainer = document.getElementById('rotatePreviewContainer');
+
+    if (rotateAutoBtn) {
+        rotateAutoBtn.addEventListener('click', () => {
+            currentRotation = 'auto';
+            updatePreviewRotation();
+            showToast('Auto Fix selected - will convert vertical to landscape', 'info');
+        });
+    }
+
+    if (rotateLeftBtn) {
+        rotateLeftBtn.addEventListener('click', () => {
+            currentRotation = 'left';
+            updatePreviewRotation();
+            showToast('Rotate Left (90°) selected', 'info');
+        });
+    }
+
+    if (rotateRightBtn) {
+        rotateRightBtn.addEventListener('click', () => {
+            currentRotation = 'right';
+            updatePreviewRotation();
+            showToast('Rotate Right (90°) selected', 'info');
+        });
+    }
+
+    if (applyRotateBtn) {
+        applyRotateBtn.addEventListener('click', rotateVideo);
+    }
+
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => downloadVideoFile('rotatePath'));
+    }
+
+    if (fileInput && livePreview) {
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                const url = URL.createObjectURL(e.target.files[0]);
+                livePreview.src = url;
+                previewContainer.classList.remove('hidden');
+                currentRotation = 'auto';
+                updatePreviewRotation();
+            }
+        });
+    }
+}
+
+function updatePreviewRotation() {
+    const livePreview = document.getElementById('rotateLivePreview');
+    if (!livePreview) return;
+
+    const rotationMap = {
+        'auto': 'rotate(0deg)',
+        'left': 'rotate(-90deg)',
+        'right': 'rotate(90deg)'
+    };
+
+    livePreview.style.transform = rotationMap[currentRotation] || 'rotate(0deg)';
+}
+
+async function rotateVideo() {
+    const fileInput = document.getElementById('rotateVideoFile');
+    const quality = document.getElementById('rotateQuality').value;
+    
+    if (!fileInput.files[0]) {
+        showToast('Please select a video', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('video', fileInput.files[0]);
+    formData.append('rotation', currentRotation);
+    formData.append('quality', quality);
+
+    const progress = document.getElementById('rotateProgress');
+    const progressBar = document.getElementById('rotateProgressBar');
+    const result = document.getElementById('rotateResult');
+    
+    progress.classList.remove('hidden');
+    progressBar.style.width = '50%';
+
+    try {
+        const response = await fetch('/api/video/rotate', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('rotatePath').value = data.output_path;
+            document.getElementById('rotatePreview').src = `/api/download-video?path=${data.output_path}`;
+            result.classList.remove('hidden');
+            progressBar.style.width = '100%';
+            showToast('Video rotated successfully!', 'success');
+        } else {
+            showToast('Failed to rotate video: ' + (data.error || 'Unknown error'), 'error');
+            progress.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error rotating video:', error);
+        showToast('Error rotating video. Please try again.', 'error');
+        progress.classList.add('hidden');
+    }
+}
+
+function downloadVideoFile(pathId) {
+    const path = document.getElementById(pathId).value;
+    window.open(`/api/download-video?path=${path}`, '_blank');
     showToast('Download started!', 'success');
 }
 
